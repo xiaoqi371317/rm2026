@@ -1,0 +1,54 @@
+tunnel_mode_manager:
+  ros__parameters:
+    map_frame: "map"
+    robot_frame: "gimbal_yaw_fake"
+    route_topic: "/tunnel_route_id"
+    follow_yaw_topic: "/if_follow_yaw"
+    status_topic: "/tunnel_mode_manager/status"
+    publish_rate: 10.0
+    route_timeout: 1.0
+    tf_timeout: 0.1
+
+    route_ids:
+      - "self_left_upper_gate"
+      - "self_right_upper_gate"
+      - "enemy_left_upper_gate"
+      - "enemy_right_upper_gate"
+
+    # Route-id trigger mode:
+    # - "normal" or unknown route_id publishes /if_follow_yaw=false.
+    # - Any configured gate route_id publishes /if_follow_yaw=true immediately.
+    # - The decision node switches route_id back to "normal" after reaching the exit pose.
+    # The center/radius/time fields are kept as measured notes and compatibility parameters,
+    # but they are not used to decide true/false in the current trigger mode.
+
+    #self_left_upper_gate.center: [8.91, 6.74] # TODO: self half left upper gate center [x, y] 这是红方
+    self_left_upper_gate.center: [10.85, -5.06] #这是蓝方
+    self_left_upper_gate.trigger_radius: 3.5
+    self_left_upper_gate.release_radius: 3.8
+    self_left_upper_gate.min_follow_yaw_sec: 0.0
+    self_left_upper_gate.max_follow_yaw_sec: 0.0
+
+    #self_right_upper_gate.center: [5.33, -4.70] # TODO: self half right upper gate center [x, y]
+    self_right_upper_gate.center: [14.67, 6.25] #这是蓝方
+    self_right_upper_gate.trigger_radius: 3.0
+    self_right_upper_gate.release_radius: 3.0
+    self_right_upper_gate.min_follow_yaw_sec: 0.0
+    self_right_upper_gate.max_follow_yaw_sec: 0.0
+
+    #enemy_left_upper_gate.center: [10.91, -5.06] # TODO: enemy half left upper gate center [x, y]
+    enemy_left_upper_gate.center: [5.33, -4.70]
+    enemy_left_upper_gate.trigger_radius: 3.5
+    enemy_left_upper_gate.release_radius: 3.8
+    enemy_left_upper_gate.min_follow_yaw_sec: 0.0
+    enemy_left_upper_gate.max_follow_yaw_sec: 0.0
+
+    #enemy_right_upper_gate.center: [14.67, 6.25] # TODO: enemy half right upper gate center [x, y]
+    enemy_right_upper_gate.center: [8.91, 6.74]
+    enemy_right_upper_gate.trigger_radius: 3.0
+    enemy_right_upper_gate.release_radius: 3.0
+    enemy_right_upper_gate.min_follow_yaw_sec: 0.0
+    enemy_right_upper_gate.max_follow_yaw_sec: 0.0
+    
+    self_left_upper_gate.center: [10.91, -5.06] # TODO: self half left upper gate center [x, y]
+    

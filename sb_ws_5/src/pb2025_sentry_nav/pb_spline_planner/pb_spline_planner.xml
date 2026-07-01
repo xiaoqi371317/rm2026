@@ -1,0 +1,8 @@
+<library path="pb_spline_planner">
+  <class
+    name="pb_spline_planner/AStarSplinePlanner"
+    type="pb_spline_planner::AStarSplinePlanner"
+    base_class_type="nav2_core::GlobalPlanner">
+    <description>A* global planner with spline trajectory optimization.</description>
+  </class>
+</library>

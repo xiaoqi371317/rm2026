@@ -1,0 +1,43 @@
+pcd2pgm:
+  ros__parameters:
+    pcd_file: /home/dut0bug/sb_ws_4/src/pb2025_sentry_nav/point_lio/PCD/scans.pcd
+    # odom_to_lidar_odom: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    odom_to_lidar_odom: [-0.24, 0.0, 0.18, -0.3, 0.0, -1.5708]
+    #  0.0 -0.2 0.10 0.0 ${pi/4} -${pi/2}
+        
+    # "0.0 -0.18 0.14 ${pi/4} 0.0 0.0"
+    # odom_to_lidar_odom: [-0.16, 0.0, -0.18, -0.523599, 0.0, -1.5707963]
+
+    flag_pass_through: False
+    map_resolution: 0.05
+    map_topic_name: map
+    thre_radius: 0.05
+    thre_z_max: 2.5
+    thre_z_min: -0.3 #-0.3
+    thres_point_count: 1
+    
+    #flag_pass_through: True
+    #map_resolution: 0.05
+    #map_topic_name: map
+    #thre_radius: 0.1
+    #thre_z_max: 2.0
+    #thre_z_min: 0.1
+    #thres_point_count: 10
+
+    # test_main
+    # flag_pass_through: false
+    # map_resolution: 0.05
+    # map_topic_name: map
+    # thre_radius: 1.5
+    # thre_z_max: 5.0
+    # thre_z_min: -0.5
+    # thres_point_count: 2
+
+    # origin
+    # flag_pass_through: false
+    # map_resolution: 0.05
+    # map_topic_name: map
+    # thre_radius: 0.1
+    # thre_z_max: 2.0
+    # thre_z_min: 0.1
+    # thres_point_count: 10

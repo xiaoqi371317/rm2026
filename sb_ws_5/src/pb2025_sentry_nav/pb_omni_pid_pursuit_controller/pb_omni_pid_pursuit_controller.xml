@@ -1,0 +1,14 @@
+<class_libraries>
+    <library path="pb_omni_pid_pursuit_controller">
+        <class type="pb_omni_pid_pursuit_controller::OmniPidPursuitController" base_class_type="nav2_core::Controller">
+            <description>
+                pb_omni_pid_pursuit_controller
+            </description>
+        </class>
+        <class type="pb_omni_pid_pursuit_controller::OmniMpcPursuitController" base_class_type="nav2_core::Controller">
+            <description>
+                lightweight omni MPC pursuit controller
+            </description>
+        </class>
+    </library>
+</class_libraries>
