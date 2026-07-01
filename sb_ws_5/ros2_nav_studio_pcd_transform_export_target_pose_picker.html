@@ -1,0 +1,2866 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>ROS 2 Nav Studio: Map Editor & Planner</title>
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --panel: #252526;
+            --accent: #007acc;
+            --text: #cccccc;
+            --border: #3e3e42;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #sidebar {
+            width: 340px;
+            background: var(--panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 20;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+        }
+
+        .mode-tabs {
+            display: flex;
+            background: #2d2d30;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #888;
+            transition: 0.2s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .mode-tab:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        .mode-tab.active {
+            background: var(--panel);
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .workspace {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: none;
+        }
+
+        .workspace.active {
+            display: block;
+        }
+
+        .group {
+            background: #333;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border: 1px solid #444;
+        }
+
+        h3 {
+            margin: 0 0 10px 0;
+            font-size: 12px;
+            color: #fff;
+            text-transform: uppercase;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            margin-top: 8px;
+            color: #aaa;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        select {
+            width: 95%;
+            background: #1e1e1e;
+            border: 1px solid #555;
+            color: white;
+            padding: 6px;
+            margin-top: 2px;
+            border-radius: 2px;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 30px;
+            background: #1e1e1e;
+            border: 1px solid #555;
+            padding: 2px;
+            margin-top: 2px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+
+        button {
+            width: 100%;
+            padding: 8px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: bold;
+            border-radius: 3px;
+            font-size: 12px;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+        }
+
+        button.secondary {
+            background: #444;
+        }
+
+        button.danger {
+            background: #c586c0;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .tool-btn {
+            padding: 8px;
+            background: #222;
+            border: 1px solid #444;
+            text-align: center;
+            cursor: pointer;
+            font-size: 12px;
+            color: #aaa;
+            border-radius: 3px;
+        }
+
+        .tool-btn:hover {
+            background: #2a2a2a;
+        }
+
+        .tool-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            background: #111;
+            color: #9cdcfe;
+            border: 1px solid #444;
+            font-family: monospace;
+            font-size: 11px;
+            margin-top: 10px;
+            resize: vertical;
+            white-space: pre;
+        }
+
+        #main-viewport {
+            flex: 1;
+            position: relative;
+            background: #111;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        #viewer3d {
+            position: absolute;
+            inset: 0;
+            display: none;
+            background: #050505;
+            z-index: 5;
+        }
+
+        #viewer3d canvas {
+            display: block;
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            margin-top: 4px;
+            color: #aaa;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 4px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        .overlay-hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 8px;
+            border-radius: 4px;
+            color: #ddd;
+            font-size: 12px;
+            pointer-events: none;
+            line-height: 1.5;
+            border: 1px solid #444;
+        }
+
+        .key {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        #coord-hud {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 5px 10px;
+            border: 1px solid #444;
+            border-radius: 3px;
+            color: #4ec9b0;
+            font-family: monospace;
+            font-size: 12px;
+            pointer-events: none;
+        }
+
+        .status-msg {
+            font-size: 11px;
+            color: #ce9178;
+            margin-top: 5px;
+            min-height: 16px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .status-msg.ok {
+            color: #6a9955;
+        }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+
+<body>
+
+<div id="sidebar">
+    <div class="mode-tabs">
+        <div class="mode-tab active" onclick="switchAppMode('editor')">🛠️ 地图编辑器</div>
+        <div class="mode-tab" onclick="switchAppMode('viewer')">☁️ 原始点云</div>
+        <div class="mode-tab" onclick="switchAppMode('planner')">🚩 路径规划器</div>
+    </div>
+
+    <div id="ws-editor" class="workspace active">
+        <div class="group">
+            <h3>数据源 (Source)</h3>
+
+            <div style="margin-bottom:10px; border-bottom:1px solid #444; padding-bottom:10px;">
+                <label>选项 A: 从 PCD 点云生成</label>
+                <input type="file" id="pcdFile" accept=".pcd">
+                <div class="status-msg" id="pcdStatus">等待文件...</div>
+
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                    <div style="flex:1">
+                        <label>Res</label>
+                        <input type="number" id="pcdRes" value="0.05" step="0.01">
+                    </div>
+                    <div style="flex:1">
+                        <label>Min Z</label>
+                        <input type="number" id="pcdMinZ" value="0.2" step="0.1">
+                    </div>
+                    <div style="flex:1">
+                        <label>Max Z</label>
+                        <input type="number" id="pcdMaxZ" value="2.0" step="0.1">
+                    </div>
+                </div>
+
+                <label style="margin-top:8px; color:#ce9178; font-size:10px;">
+                    ⚙ 激光雷达完整初始位姿修正 (LiDAR → World)
+                </label>
+
+                <div style="display:flex; gap:5px;">
+                    <div style="flex:1">
+                        <label>Tx (m)</label>
+                        <input type="number" id="pcdTx" value="0.0" step="0.01">
+                    </div>
+                    <div style="flex:1">
+                        <label>Ty (m)</label>
+                        <input type="number" id="pcdTy" value="0.0" step="0.01">
+                    </div>
+                    <div style="flex:1">
+                        <label>Tz (m)</label>
+                        <input type="number" id="pcdTz" value="0.0" step="0.01">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:5px;">
+                    <div style="flex:1">
+                        <label>Roll (°)</label>
+                        <input type="number" id="pcdRoll" value="0.0" step="0.1">
+                    </div>
+                    <div style="flex:1">
+                        <label>Pitch (°)</label>
+                        <input type="number" id="pcdPitch" value="0.0" step="0.1">
+                    </div>
+                    <div style="flex:1">
+                        <label>Yaw (°)</label>
+                        <input type="number" id="pcdYaw" value="0.0" step="0.1">
+                    </div>
+                </div>
+
+                <label style="font-size:10px; color:#888; margin-top:2px;">
+                    <input type="checkbox" id="pcdAutoViewpoint" onchange="toggleViewpointAuto()">
+                    自动读取 PCD VIEWPOINT 字段
+                </label>
+
+                <button onclick="processPCD()">⚡ 生成地图</button>
+                <button class="secondary" onclick="openRawPCDViewer()">☁️ 查看原始 PCD + 初始位姿轴</button>
+
+                <div style="margin-top:12px; border-top:1px solid #444; padding-top:10px;">
+                    <label style="color:#4ec9b0; font-size:11px; font-weight:bold;">
+                        ☁ PCD 刚体变换导出 / 重设点云起点
+                    </label>
+
+                    <label>变换模式</label>
+                    <select id="pcdTfMode" onchange="updatePCDTransformModeHint()">
+                        <option value="reset_start" selected>重设起点：指定旧地图中的起点，导出到新坐标系</option>
+                        <option value="direct">直接变换：围绕旋转中心旋转，再整体平移</option>
+                    </select>
+
+                    <div class="status-msg" id="pcdTfHint" style="white-space:normal; line-height:1.4;">
+                        公式：P_out = R_startᵀ · (P_in - Start)。适合把旧地图中的任意位姿作为新 PCD 的建图起点。
+                    </div>
+
+                    <div style="display:flex; gap:5px;">
+                        <div style="flex:1">
+                            <label id="pcdTfCxLabel">Start X (m)</label>
+                            <input type="number" id="pcdTfCx" value="0.0" step="0.01">
+                        </div>
+                        <div style="flex:1">
+                            <label id="pcdTfCyLabel">Start Y (m)</label>
+                            <input type="number" id="pcdTfCy" value="0.0" step="0.01">
+                        </div>
+                        <div style="flex:1">
+                            <label id="pcdTfCzLabel">Start Z (m)</label>
+                            <input type="number" id="pcdTfCz" value="0.0" step="0.01">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:5px;">
+                        <div style="flex:1">
+                            <label>Roll (°)</label>
+                            <input type="number" id="pcdTfRoll" value="0.0" step="0.1">
+                        </div>
+                        <div style="flex:1">
+                            <label>Pitch (°)</label>
+                            <input type="number" id="pcdTfPitch" value="0.0" step="0.1">
+                        </div>
+                        <div style="flex:1">
+                            <label>Yaw (°)</label>
+                            <input type="number" id="pcdTfYaw" value="0.0" step="0.1">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:5px;">
+                        <div style="flex:1">
+                            <label id="pcdTfTxLabel">Out X (m)</label>
+                            <input type="number" id="pcdTfTx" value="0.0" step="0.01">
+                        </div>
+                        <div style="flex:1">
+                            <label id="pcdTfTyLabel">Out Y (m)</label>
+                            <input type="number" id="pcdTfTy" value="0.0" step="0.01">
+                        </div>
+                        <div style="flex:1">
+                            <label id="pcdTfTzLabel">Out Z (m)</label>
+                            <input type="number" id="pcdTfTz" value="0.0" step="0.01">
+                        </div>
+                    </div>
+
+                    <label style="font-size:10px; color:#888; margin-top:4px;">
+                        <input type="checkbox" id="pcdTfRewriteViewpoint" checked>
+                        导出时将 VIEWPOINT 重写为 identity
+                    </label>
+
+                    <button onclick="exportTransformedPCD()">💾 变换并导出新的 PCD</button>
+                    <div class="status-msg" id="pcdTfStatus">等待导出...</div>
+                </div>
+            </div>
+
+            <div>
+                <label>选项 B: 编辑现有地图 (YAML + PGM)</label>
+                <input type="file" id="yamlFile" accept=".yaml">
+                <input type="file" id="pgmFile" accept=".pgm,.png,.jpg">
+                <button class="secondary" onclick="loadExistingMap()">📂 加载地图</button>
+            </div>
+        </div>
+
+        <div class="group">
+            <h3>修图工具 (Tools)</h3>
+            <div class="tools-grid">
+                <div class="tool-btn active" id="tool-pan" onclick="setEditorTool('pan')">✋ 移动</div>
+                <div class="tool-btn" id="tool-draw" onclick="setEditorTool('draw')">✏️ 补墙</div>
+                <div class="tool-btn" id="tool-erase" onclick="setEditorTool('erase')">⬜ 擦为Free</div>
+            </div>
+
+            <label>笔刷大小: <span id="brushSizeTxt">2</span> px</label>
+            <input
+                type="range"
+                id="brushSize"
+                min="1"
+                max="20"
+                value="2"
+                style="width:100%"
+                oninput="document.getElementById('brushSizeTxt').innerText=this.value"
+            >
+        </div>
+
+        <div class="group">
+            <h3>参数校准 (Calibration)</h3>
+
+            <label>分辨率 (Resolution)</label>
+            <input type="number" id="globalRes" value="0.05" step="0.001" onchange="updateGlobalParams()">
+
+            <div style="display:flex; gap:5px">
+                <div style="flex:1">
+                    <label>Origin X</label>
+                    <input type="number" id="globalOrgX" value="-10.0" step="0.05" onchange="updateGlobalParams()">
+                </div>
+                <div style="flex:1">
+                    <label>Origin Y</label>
+                    <input type="number" id="globalOrgY" value="-10.0" step="0.05" onchange="updateGlobalParams()">
+                </div>
+            </div>
+
+            <label>
+                <input type="checkbox" id="globalFlipY" onchange="updateGlobalParams()">
+                翻转 Y 轴 (Flip Y)
+            </label>
+        </div>
+
+        <div class="group">
+            <button onclick="exportMapAssets()">💾 导出 PGM & YAML</button>
+        </div>
+    </div>
+
+
+    <div id="ws-viewer" class="workspace">
+        <div class="group">
+            <h3>原始 PCD 点云查看器</h3>
+            <div style="font-size:11px; color:#aaa; line-height:1.6;">
+                使用编辑器里选择的同一个 PCD 文件。点云按原始 PCD 坐标显示；红绿蓝坐标轴表示当前填写的激光雷达初始位姿。
+            </div>
+            <button onclick="openRawPCDViewer()">🔄 加载 / 刷新原始点云</button>
+            <button class="secondary" onclick="updatePoseAxisOnly()">🎯 仅更新初始位姿坐标轴</button>
+            <button class="secondary" onclick="resetRawViewerCamera()">📷 视角居中</button>
+            <div class="status-msg" id="rawViewerStatus">等待 PCD 文件...</div>
+        </div>
+
+        <div class="group">
+            <h3>坐标轴与 Grid 显示</h3>
+            <div class="legend-row"><span class="legend-color" style="background:#ff3030"></span> X 轴 / Roll 方向 / 标签 Roll</div>
+            <div class="legend-row"><span class="legend-color" style="background:#30ff30"></span> Y 轴 / Pitch 方向 / 标签 Pitch</div>
+            <div class="legend-row"><span class="legend-color" style="background:#3080ff"></span> Z 轴 / Yaw 方向 / 标签 Yaw</div>
+            <label>坐标轴长度 (m)</label>
+            <input type="number" id="rawAxisLen" value="3.0" step="0.1" onchange="updatePoseAxisOnly()">
+            <label>点大小</label>
+            <input type="number" id="rawPointSize" value="0.03" step="0.01" onchange="updateRawPointSize()">
+
+            <div style="margin-top:12px; border-top:1px solid #444; padding-top:10px;">
+                <label style="color:#dcdcaa; font-size:11px; font-weight:bold;">Grid 方格基座</label>
+                <div style="display:flex; gap:5px;">
+                    <div style="flex:1">
+                        <label>总尺寸 (m)</label>
+                        <input type="number" id="rawGridSize" value="20" min="0.1" step="1" onchange="updateRawGrid()">
+                    </div>
+                    <div style="flex:1">
+                        <label>每格大小 (m)</label>
+                        <input type="number" id="rawGridCell" value="1" min="0.01" step="0.1" onchange="updateRawGrid()">
+                    </div>
+                </div>
+                <div style="display:flex; gap:5px;">
+                    <div style="flex:1">
+                        <label>中心线颜色</label>
+                        <input type="color" id="rawGridCenterColor" value="#444444" oninput="updateRawGrid()">
+                    </div>
+                    <div style="flex:1">
+                        <label>普通网格颜色</label>
+                        <input type="color" id="rawGridLineColor" value="#222222" oninput="updateRawGrid()">
+                    </div>
+                </div>
+                <div class="status-msg ok" id="rawGridStatus" style="white-space:normal; line-height:1.4;">
+                    Grid: 20m，总共 20 格，每格 1m。
+                </div>
+            </div>
+        </div>
+
+        <div class="group">
+            <h3>目标起点位姿拾取</h3>
+            <div style="font-size:11px; color:#aaa; line-height:1.6;">
+                用第二套红绿蓝坐标轴在原始 PCD 中直接拖动/旋转目标起点。确认后会自动生成“重设起点”所需的 Start 与 RPY 参数。
+            </div>
+
+            <button onclick="createOrShowTargetStartPose()">🎯 创建 / 显示目标起点位姿</button>
+
+            <div class="tools-grid" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="tool-btn" onclick="setRawTargetTransformMode('translate')">↔ 平移拖动</div>
+                <div class="tool-btn" onclick="setRawTargetTransformMode('rotate')">⟳ 旋转调整</div>
+            </div>
+
+            <div style="display:flex; gap:5px;">
+                <button class="secondary" onclick="copyInitialPoseToTargetStartPose()">从初始位姿复制</button>
+                <button class="secondary" onclick="centerTargetStartPoseOnPointCloud()">放到点云中心</button>
+            </div>
+
+            <button onclick="applyTargetStartPoseToPCDTransform()">✅ 应用到重设起点参数并切回导出面板</button>
+            <button class="secondary" onclick="copyTargetStartPoseParams()">📋 复制目标位姿参数</button>
+            <button class="danger" onclick="clearTargetStartPose()">清除目标起点位姿</button>
+
+            <div class="status-msg" id="rawTargetPoseStatus" style="white-space:normal; line-height:1.4;">
+                尚未创建目标起点位姿。
+            </div>
+            <textarea id="rawTargetPoseOutput" readonly style="height:120px;" placeholder="目标位姿参数会显示在这里..."></textarea>
+        </div>
+
+        <div class="group" style="background:#252526; border:none;">
+            <p style="font-size:11px; color:#666; line-height:1.6;">
+                * 鼠标左键：旋转视角。<br>
+                * 鼠标右键：平移视角。<br>
+                * 滚轮：缩放视角。<br>
+                * 坐标轴位姿来源于 Tx/Ty/Tz/Roll/Pitch/Yaw，和地图生成功能共用一套参数。<br>
+                * 目标起点位姿用于生成 PCD 变换导出中的 Start 与 RPY 参数。
+            </p>
+        </div>
+    </div>
+
+    <div id="ws-planner" class="workspace">
+        <div class="group">
+            <h3>航点列表 (Waypoints)</h3>
+            <div style="color:#aaa; font-size:12px; margin-bottom:10px;">
+                <span id="wp-count">0</span> 个航点
+            </div>
+
+            <button onclick="undoWaypoint()">↩️ 撤销上一步</button>
+            <button class="danger" onclick="clearWaypoints()">🗑️ 清空所有</button>
+        </div>
+
+        <div class="group">
+            <h3>导出参数 (Export)</h3>
+            <textarea id="wp-output" readonly placeholder="数据将在此生成..."></textarea>
+            <button onclick="copyWaypoints()">📋 复制到剪贴板</button>
+        </div>
+
+        <div class="group" style="background: #252526; border:none;">
+            <p style="font-size:11px; color:#666;">
+                * 提示：规划器直接使用编辑器中的地图作为底图。
+                <br>* 请先在编辑器中确保 Origin/Resolution 正确。
+            </p>
+        </div>
+    </div>
+</div>
+
+<div id="main-viewport">
+    <div class="overlay-hud" id="hud-tips">
+        <div id="tip-editor">
+            <span class="key">左键</span>：涂抹/擦除<br>
+            <span class="key">右键</span>：拖拽画布<br>
+            <span class="key">滚轮</span>：缩放
+        </div>
+
+        <div id="tip-planner" style="display:none">
+            <span class="key">左键</span>：按下定点，拖拽定方向<br>
+            <span class="key">右键</span>：拖拽画布<br>
+            <span class="key">滚轮</span>：缩放
+        </div>
+    </div>
+
+    <div id="coord-hud">X: 0.00 Y: 0.00</div>
+
+    <div id="viewer3d"></div>
+
+    <div id="canvas-stack" style="transform-origin: 0 0;">
+        <canvas id="cvs-map" style="position:absolute; left:0; top:0; image-rendering: pixelated;"></canvas>
+        <canvas id="cvs-ui" style="position:absolute; left:0; top:0; pointer-events:none;"></canvas>
+    </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { PCDLoader } from 'three/addons/loaders/PCDLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+const state = {
+    mode: 'editor',
+    editorTool: 'pan',
+
+    width: 800,
+    height: 800,
+    resolution: 0.05,
+    originX: -10.0,
+    originY: -10.0,
+    flipY: false,
+
+    scale: 1.0,
+    panX: 0,
+    panY: 0,
+
+    isMouseDown: false,
+    lastMouseX: 0,
+    lastMouseY: 0,
+
+    waypoints: [],
+
+    rawViewerReady: false,
+    rawScene: null,
+    rawCamera: null,
+    rawRenderer: null,
+    rawControls: null,
+    rawPointCloud: null,
+    rawAxisGroup: null,
+    rawGrid: null,
+
+    rawTargetPoseGroup: null,
+    rawTargetTransformControl: null,
+    rawTargetPoseParams: null
+};
+
+const cvsMap = document.getElementById('cvs-map');
+const ctxMap = cvsMap.getContext('2d', { willReadFrequently: true });
+
+const cvsUI = document.getElementById('cvs-ui');
+const ctxUI = cvsUI.getContext('2d');
+
+const stack = document.getElementById('canvas-stack');
+const viewport = document.getElementById('main-viewport');
+
+function init() {
+    resizeCanvas(800, 800);
+    resetView();
+    renderLoop();
+
+    ctxMap.fillStyle = '#ffffff';
+    ctxMap.fillRect(0, 0, 800, 800);
+
+    if (window.updatePCDTransformModeHint) {
+        window.updatePCDTransformModeHint();
+    }
+}
+
+window.switchAppMode = (mode) => {
+    state.mode = mode;
+
+    document.querySelectorAll('.mode-tab').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.workspace').forEach(el => el.classList.remove('active'));
+
+    const viewer3d = document.getElementById('viewer3d');
+    const canvasStack = document.getElementById('canvas-stack');
+    const coordHud = document.getElementById('coord-hud');
+
+    viewer3d.style.display = 'none';
+    canvasStack.style.display = 'block';
+    coordHud.style.display = 'block';
+
+    if (mode === 'editor') {
+        document.querySelector('.mode-tab:nth-child(1)').classList.add('active');
+        document.getElementById('ws-editor').classList.add('active');
+        document.getElementById('hud-tips').style.display = 'block';
+        document.getElementById('tip-editor').style.display = 'block';
+        document.getElementById('tip-planner').style.display = 'none';
+    } else if (mode === 'viewer') {
+        document.querySelector('.mode-tab:nth-child(2)').classList.add('active');
+        document.getElementById('ws-viewer').classList.add('active');
+        document.getElementById('hud-tips').style.display = 'none';
+        document.getElementById('tip-editor').style.display = 'none';
+        document.getElementById('tip-planner').style.display = 'none';
+        viewer3d.style.display = 'block';
+        canvasStack.style.display = 'none';
+        coordHud.style.display = 'none';
+        ensureRawViewer();
+        resizeRawViewer();
+    } else {
+        document.querySelector('.mode-tab:nth-child(3)').classList.add('active');
+        document.getElementById('ws-planner').classList.add('active');
+        document.getElementById('hud-tips').style.display = 'block';
+        document.getElementById('tip-editor').style.display = 'none';
+        document.getElementById('tip-planner').style.display = 'block';
+        generateWaypointOutput();
+    }
+
+    renderUI();
+};
+
+window.setEditorTool = (tool) => {
+    state.editorTool = tool;
+
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tool-' + tool).classList.add('active');
+};
+
+function updateViewTransform() {
+    stack.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.scale})`;
+}
+
+function resetView() {
+    const viewW = viewport.clientWidth;
+    const viewH = viewport.clientHeight;
+
+    state.scale = Math.min(viewW / state.width, viewH / state.height) * 0.85;
+    state.panX = (viewW - state.width * state.scale) / 2;
+    state.panY = (viewH - state.height * state.scale) / 2;
+
+    updateViewTransform();
+}
+
+function resizeCanvas(w, h) {
+    state.width = w;
+    state.height = h;
+
+    cvsMap.width = w;
+    cvsMap.height = h;
+
+    cvsUI.width = w;
+    cvsUI.height = h;
+
+    stack.style.width = w + 'px';
+    stack.style.height = h + 'px';
+}
+
+viewport.addEventListener('wheel', e => {
+    if (state.mode === 'viewer') return;
+    e.preventDefault();
+
+    const zoomSpeed = 0.1;
+    const delta = e.deltaY > 0 ? -1 : 1;
+    const factor = Math.exp(delta * zoomSpeed);
+
+    const rect = viewport.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const mapX = (mx - state.panX) / state.scale;
+    const mapY = (my - state.panY) / state.scale;
+
+    let newScale = state.scale * factor;
+    if (newScale < 0.05) newScale = 0.05;
+    if (newScale > 50) newScale = 50;
+
+    state.panX = mx - mapX * newScale;
+    state.panY = my - mapY * newScale;
+    state.scale = newScale;
+
+    updateViewTransform();
+});
+
+let plannerStart = null;
+
+viewport.addEventListener('mousedown', e => {
+    if (state.mode === 'viewer') return;
+    state.isMouseDown = true;
+    state.lastMouseX = e.clientX;
+    state.lastMouseY = e.clientY;
+
+    if (state.mode === 'planner' && e.button === 0) {
+        const pos = getMapPos(e);
+        if (pos) plannerStart = pos;
+    }
+
+    if (state.mode === 'editor' && e.button === 0 && state.editorTool !== 'pan') {
+        paintOnMap(e);
+    }
+});
+
+viewport.addEventListener('mousemove', e => {
+    if (state.mode === 'viewer') return;
+    const pos = getMapPos(e);
+
+    if (pos) {
+        const world = mapPixelToWorld(pos.x, pos.y);
+        document.getElementById('coord-hud').innerText =
+            `X: ${world.x.toFixed(2)} Y: ${world.y.toFixed(2)}`;
+    }
+
+    const isRightClick = e.buttons === 2;
+
+    if (
+        state.isMouseDown &&
+        (
+            isRightClick ||
+            (state.mode === 'editor' && state.editorTool === 'pan' && e.button === 0)
+        )
+    ) {
+        state.panX += e.clientX - state.lastMouseX;
+        state.panY += e.clientY - state.lastMouseY;
+        updateViewTransform();
+    }
+
+    if (
+        state.isMouseDown &&
+        state.mode === 'editor' &&
+        state.editorTool !== 'pan' &&
+        !isRightClick
+    ) {
+        paintOnMap(e);
+    }
+
+    if (state.isMouseDown && state.mode === 'planner' && plannerStart) {
+        renderUI(pos);
+    }
+
+    state.lastMouseX = e.clientX;
+    state.lastMouseY = e.clientY;
+});
+
+window.addEventListener('mouseup', e => {
+    if (state.mode === 'viewer') return;
+    state.isMouseDown = false;
+
+    if (state.mode === 'planner' && plannerStart) {
+        const endPos = getMapPos(e);
+
+        if (endPos) {
+            const dx = endPos.x - plannerStart.x;
+            const dy = endPos.y - plannerStart.y;
+
+            const pixelYaw =
+                (Math.abs(dx) > 1 || Math.abs(dy) > 1)
+                    ? Math.atan2(dy, dx)
+                    : 0;
+
+            const rosYaw = -pixelYaw;
+            const world = mapPixelToWorld(plannerStart.x, plannerStart.y);
+
+            state.waypoints.push({
+                mapX: plannerStart.x,
+                mapY: plannerStart.y,
+                pixelYaw,
+                wx: world.x,
+                wy: world.y,
+                rosYaw
+            });
+
+            updateWaypointCount();
+            generateWaypointOutput();
+        }
+
+        plannerStart = null;
+        renderUI();
+    }
+});
+
+viewport.addEventListener('contextmenu', e => e.preventDefault());
+
+function getMapPos(e) {
+    const rect = viewport.getBoundingClientRect();
+
+    const vx = e.clientX - rect.left;
+    const vy = e.clientY - rect.top;
+
+    const mx = (vx - state.panX) / state.scale;
+    const my = (vy - state.panY) / state.scale;
+
+    if (mx >= 0 && mx < state.width && my >= 0 && my < state.height) {
+        return { x: mx, y: my };
+    }
+
+    return null;
+}
+
+window.toggleViewpointAuto = () => {
+    const checked = document.getElementById('pcdAutoViewpoint').checked;
+
+    const ids = [
+        'pcdTx',
+        'pcdTy',
+        'pcdTz',
+        'pcdRoll',
+        'pcdPitch',
+        'pcdYaw'
+    ];
+
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        el.disabled = checked;
+        el.style.opacity = checked ? '0.5' : '1';
+    });
+};
+
+function getCurrentPoseParamsRad() {
+    const tx = parseFloat(document.getElementById('pcdTx').value) || 0.0;
+    const ty = parseFloat(document.getElementById('pcdTy').value) || 0.0;
+    const tz = parseFloat(document.getElementById('pcdTz').value) || 0.0;
+
+    const rollDeg = parseFloat(document.getElementById('pcdRoll').value) || 0.0;
+    const pitchDeg = parseFloat(document.getElementById('pcdPitch').value) || 0.0;
+    const yawDeg = parseFloat(document.getElementById('pcdYaw').value) || 0.0;
+
+    return {
+        tx,
+        ty,
+        tz,
+        roll: rollDeg * Math.PI / 180.0,
+        pitch: pitchDeg * Math.PI / 180.0,
+        yaw: yawDeg * Math.PI / 180.0,
+        rollDeg,
+        pitchDeg,
+        yawDeg
+    };
+}
+
+function ensureRawViewer() {
+    if (state.rawViewerReady) return;
+
+    const container = document.getElementById('viewer3d');
+
+    state.rawScene = new THREE.Scene();
+    state.rawScene.background = new THREE.Color(0x050505);
+
+    state.rawCamera = new THREE.PerspectiveCamera(
+        60,
+        Math.max(1, container.clientWidth) / Math.max(1, container.clientHeight),
+        0.01,
+        10000
+    );
+    state.rawCamera.position.set(4, -6, 4);
+    state.rawCamera.up.set(0, 0, 1);
+
+    state.rawRenderer = new THREE.WebGLRenderer({ antialias: true });
+    state.rawRenderer.setPixelRatio(window.devicePixelRatio || 1);
+    state.rawRenderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(state.rawRenderer.domElement);
+
+    state.rawControls = new OrbitControls(state.rawCamera, state.rawRenderer.domElement);
+    state.rawControls.enableDamping = true;
+    state.rawControls.dampingFactor = 0.08;
+    state.rawControls.screenSpacePanning = false;
+    state.rawControls.target.set(0, 0, 0);
+    state.rawControls.update();
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+    state.rawScene.add(ambient);
+
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+    dir.position.set(5, -5, 8);
+    state.rawScene.add(dir);
+
+    state.rawViewerReady = true;
+    updateRawGrid();
+}
+
+function resizeRawViewer() {
+    if (!state.rawViewerReady) return;
+
+    const container = document.getElementById('viewer3d');
+    const w = Math.max(1, container.clientWidth);
+    const h = Math.max(1, container.clientHeight);
+
+    state.rawCamera.aspect = w / h;
+    state.rawCamera.updateProjectionMatrix();
+    state.rawRenderer.setSize(w, h);
+}
+
+window.addEventListener('resize', () => {
+    resizeRawViewer();
+});
+
+function clearRawPointCloud() {
+    if (state.rawPointCloud) {
+        state.rawScene.remove(state.rawPointCloud);
+        state.rawPointCloud.geometry.dispose();
+        if (state.rawPointCloud.material) state.rawPointCloud.material.dispose();
+        state.rawPointCloud = null;
+    }
+}
+
+function disposeMaterialSafe(material) {
+    if (!material) return;
+
+    const materials = Array.isArray(material) ? material : [material];
+
+    for (const mat of materials) {
+        if (!mat) continue;
+        if (mat.map) mat.map.dispose();
+        mat.dispose();
+    }
+}
+
+function disposeObjectTree(root) {
+    if (!root) return;
+
+    root.traverse(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) disposeMaterialSafe(obj.material);
+    });
+}
+
+function clearPoseAxis() {
+    if (state.rawAxisGroup) {
+        state.rawScene.remove(state.rawAxisGroup);
+        disposeObjectTree(state.rawAxisGroup);
+        state.rawAxisGroup = null;
+    }
+}
+
+function clearRawGrid() {
+    if (state.rawGrid) {
+        state.rawScene.remove(state.rawGrid);
+        disposeObjectTree(state.rawGrid);
+        state.rawGrid = null;
+    }
+}
+
+function normalizeDeg(deg) {
+    let out = deg;
+
+    while (out > 180.0) out -= 360.0;
+    while (out <= -180.0) out += 360.0;
+
+    return out;
+}
+
+function poseDegToRadPose(pose) {
+    return {
+        tx: pose.tx || 0.0,
+        ty: pose.ty || 0.0,
+        tz: pose.tz || 0.0,
+        roll: (pose.rollDeg || 0.0) * Math.PI / 180.0,
+        pitch: (pose.pitchDeg || 0.0) * Math.PI / 180.0,
+        yaw: (pose.yawDeg || 0.0) * Math.PI / 180.0,
+        rollDeg: pose.rollDeg || 0.0,
+        pitchDeg: pose.pitchDeg || 0.0,
+        yawDeg: pose.yawDeg || 0.0
+    };
+}
+
+function getPointCloudCenterPoseFallback() {
+    if (state.rawPointCloud) {
+        const bounds = getPointCloudBounds(state.rawPointCloud);
+        return {
+            tx: bounds.center.x,
+            ty: bounds.center.y,
+            tz: bounds.center.z,
+            rollDeg: 0.0,
+            pitchDeg: 0.0,
+            yawDeg: 0.0
+        };
+    }
+
+    return {
+        tx: 0.0,
+        ty: 0.0,
+        tz: 0.0,
+        rollDeg: 0.0,
+        pitchDeg: 0.0,
+        yawDeg: 0.0
+    };
+}
+
+function getPCDTransformStartPoseInputValues() {
+    return {
+        tx: parseFloat(document.getElementById('pcdTfCx')?.value) || 0.0,
+        ty: parseFloat(document.getElementById('pcdTfCy')?.value) || 0.0,
+        tz: parseFloat(document.getElementById('pcdTfCz')?.value) || 0.0,
+        rollDeg: parseFloat(document.getElementById('pcdTfRoll')?.value) || 0.0,
+        pitchDeg: parseFloat(document.getElementById('pcdTfPitch')?.value) || 0.0,
+        yawDeg: parseFloat(document.getElementById('pcdTfYaw')?.value) || 0.0
+    };
+}
+
+function poseHasMeaningfulValue(pose) {
+    if (!pose) return false;
+
+    return Math.abs(pose.tx || 0.0) > 1e-9 ||
+        Math.abs(pose.ty || 0.0) > 1e-9 ||
+        Math.abs(pose.tz || 0.0) > 1e-9 ||
+        Math.abs(pose.rollDeg || 0.0) > 1e-9 ||
+        Math.abs(pose.pitchDeg || 0.0) > 1e-9 ||
+        Math.abs(pose.yawDeg || 0.0) > 1e-9;
+}
+
+function saveRawTargetPoseToStorage(pose) {
+    try {
+        localStorage.setItem('ros2_nav_studio_raw_target_start_pose', JSON.stringify(pose));
+    } catch (err) {
+        // 浏览器禁用 localStorage 时忽略，不影响当前页面使用。
+    }
+}
+
+function loadRawTargetPoseFromStorage() {
+    try {
+        const txt = localStorage.getItem('ros2_nav_studio_raw_target_start_pose');
+        if (!txt) return null;
+
+        const pose = JSON.parse(txt);
+        if (!pose || typeof pose !== 'object') return null;
+
+        return {
+            tx: Number(pose.tx) || 0.0,
+            ty: Number(pose.ty) || 0.0,
+            tz: Number(pose.tz) || 0.0,
+            rollDeg: Number(pose.rollDeg) || 0.0,
+            pitchDeg: Number(pose.pitchDeg) || 0.0,
+            yawDeg: Number(pose.yawDeg) || 0.0
+        };
+    } catch (err) {
+        return null;
+    }
+}
+
+function getInitialTargetStartPose() {
+    if (state.rawTargetPoseParams) return state.rawTargetPoseParams;
+
+    const saved = loadRawTargetPoseFromStorage();
+    if (saved && poseHasMeaningfulValue(saved)) return saved;
+
+    const inputPose = getPCDTransformStartPoseInputValues();
+    if (poseHasMeaningfulValue(inputPose)) return inputPose;
+
+    return getPointCloudCenterPoseFallback();
+}
+
+function makeOriginMarker(radius, color) {
+    return new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 24, 16),
+        new THREE.MeshBasicMaterial({ color })
+    );
+}
+
+function createAxisVisualGroup(pose, titleText, titleColor, lenScale = 1.0) {
+    const lenInput = parseFloat(document.getElementById('rawAxisLen')?.value);
+    const len = (Number.isFinite(lenInput) && lenInput > 0 ? lenInput : 1.0) * lenScale;
+    const poseRad = poseDegToRadPose(pose);
+
+    const group = new THREE.Group();
+
+    const xDir = new THREE.Vector3(1, 0, 0);
+    const yDir = new THREE.Vector3(0, 1, 0);
+    const zDir = new THREE.Vector3(0, 0, 1);
+
+    group.add(makeAxisArrow(xDir, 0xff3030, len));
+    group.add(makeAxisArrow(yDir, 0x30ff30, len));
+    group.add(makeAxisArrow(zDir, 0x3080ff, len));
+
+    group.add(makeAxisLabel('Roll', xDir, '#ff3030', len));
+    group.add(makeAxisLabel('Pitch', yDir, '#30ff30', len));
+    group.add(makeAxisLabel('Yaw', zDir, '#3080ff', len));
+
+    const markerRadius = Math.max(len * 0.04, 0.04);
+    const marker = makeOriginMarker(markerRadius, 0xffd700);
+    marker.name = 'Target Start Origin Marker';
+    group.add(marker);
+
+    if (titleText) {
+        const title = makeTextSprite(titleText, titleColor || '#dcdcaa', Math.max(len * 0.15, 0.32));
+        title.position.set(0, 0, len * 1.22);
+        title.name = 'Target Start Title';
+        group.add(title);
+    }
+
+    const euler = new THREE.Euler(poseRad.roll, poseRad.pitch, poseRad.yaw, 'XYZ');
+    group.quaternion.setFromEuler(euler);
+    group.position.set(poseRad.tx, poseRad.ty, poseRad.tz);
+
+    return group;
+}
+
+function ensureRawTargetTransformControl() {
+    ensureRawViewer();
+
+    if (state.rawTargetTransformControl) return;
+
+    state.rawTargetTransformControl = new TransformControls(
+        state.rawCamera,
+        state.rawRenderer.domElement
+    );
+
+    state.rawTargetTransformControl.setMode('translate');
+    state.rawTargetTransformControl.setSpace('world');
+
+    state.rawTargetTransformControl.addEventListener('dragging-changed', event => {
+        if (state.rawControls) {
+            state.rawControls.enabled = !event.value;
+        }
+    });
+
+    state.rawTargetTransformControl.addEventListener('objectChange', () => {
+        updateRawTargetPoseReadout('正在调整目标起点位姿...');
+    });
+
+    state.rawScene.add(state.rawTargetTransformControl);
+}
+
+function getTargetStartPoseFromGroup() {
+    if (!state.rawTargetPoseGroup) return null;
+
+    const euler = new THREE.Euler().setFromQuaternion(
+        state.rawTargetPoseGroup.quaternion,
+        'XYZ'
+    );
+
+    return {
+        tx: state.rawTargetPoseGroup.position.x,
+        ty: state.rawTargetPoseGroup.position.y,
+        tz: state.rawTargetPoseGroup.position.z,
+        rollDeg: normalizeDeg(euler.x * 180.0 / Math.PI),
+        pitchDeg: normalizeDeg(euler.y * 180.0 / Math.PI),
+        yawDeg: normalizeDeg(euler.z * 180.0 / Math.PI)
+    };
+}
+
+function formatTargetStartPoseParams(pose) {
+    if (!pose) return '';
+
+    return [
+        '变换模式: 重设起点 reset_start',
+        '公式: P_out = R_start^T · (P_in - Start) + Out',
+        '',
+        `Start X: ${pose.tx.toFixed(4)} m`,
+        `Start Y: ${pose.ty.toFixed(4)} m`,
+        `Start Z: ${pose.tz.toFixed(4)} m`,
+        `Roll:    ${pose.rollDeg.toFixed(4)} deg`,
+        `Pitch:   ${pose.pitchDeg.toFixed(4)} deg`,
+        `Yaw:     ${pose.yawDeg.toFixed(4)} deg`,
+        '',
+        'Out X/Y/Z: 0.0000 / 0.0000 / 0.0000 m',
+        '',
+        `可直接填入: pcdTfCx=${pose.tx.toFixed(4)}, pcdTfCy=${pose.ty.toFixed(4)}, pcdTfCz=${pose.tz.toFixed(4)}, pcdTfRoll=${pose.rollDeg.toFixed(4)}, pcdTfPitch=${pose.pitchDeg.toFixed(4)}, pcdTfYaw=${pose.yawDeg.toFixed(4)}`
+    ].join('\n');
+}
+
+function updateRawTargetPoseReadout(prefix = '') {
+    const pose = getTargetStartPoseFromGroup();
+    const status = document.getElementById('rawTargetPoseStatus');
+    const output = document.getElementById('rawTargetPoseOutput');
+
+    if (!pose) {
+        if (status) {
+            status.innerText = '尚未创建目标起点位姿。';
+            status.classList.remove('ok');
+        }
+        if (output) output.value = '';
+        return;
+    }
+
+    state.rawTargetPoseParams = pose;
+    saveRawTargetPoseToStorage(pose);
+
+    if (output) output.value = formatTargetStartPoseParams(pose);
+
+    if (status) {
+        const mode = state.rawTargetTransformControl?.getMode?.() || 'translate';
+        const modeTxt = mode === 'rotate' ? '旋转调整' : '平移拖动';
+        status.innerText =
+            `${prefix ? prefix + ' ' : ''}` +
+            `目标起点：Start=(${pose.tx.toFixed(3)}, ${pose.ty.toFixed(3)}, ${pose.tz.toFixed(3)}) m, ` +
+            `RPY=(${pose.rollDeg.toFixed(2)}, ${pose.pitchDeg.toFixed(2)}, ${pose.yawDeg.toFixed(2)})°，当前手柄=${modeTxt}`;
+        status.classList.add('ok');
+    }
+}
+
+function rebuildRawTargetPoseVisualKeepPose() {
+    if (!state.rawTargetPoseGroup) return;
+
+    const pose = getTargetStartPoseFromGroup();
+    if (!pose) return;
+
+    if (state.rawTargetTransformControl) {
+        state.rawTargetTransformControl.detach();
+    }
+
+    state.rawScene.remove(state.rawTargetPoseGroup);
+    disposeObjectTree(state.rawTargetPoseGroup);
+
+    state.rawTargetPoseGroup = createAxisVisualGroup(pose, 'Target Start', '#dcdcaa', 0.9);
+    state.rawTargetPoseGroup.name = 'Target Start Pose';
+    state.rawScene.add(state.rawTargetPoseGroup);
+
+    ensureRawTargetTransformControl();
+    state.rawTargetTransformControl.attach(state.rawTargetPoseGroup);
+    updateRawTargetPoseReadout('目标起点显示已刷新。');
+}
+
+window.createOrShowTargetStartPose = () => {
+    ensureRawViewer();
+
+    if (!state.rawTargetPoseGroup) {
+        const pose = getInitialTargetStartPose();
+        state.rawTargetPoseGroup = createAxisVisualGroup(pose, 'Target Start', '#dcdcaa', 0.9);
+        state.rawTargetPoseGroup.name = 'Target Start Pose';
+        state.rawScene.add(state.rawTargetPoseGroup);
+    }
+
+    ensureRawTargetTransformControl();
+    state.rawTargetTransformControl.attach(state.rawTargetPoseGroup);
+    state.rawTargetTransformControl.setMode('translate');
+    state.rawTargetTransformControl.setSpace('world');
+    updateRawTargetPoseReadout('已创建/显示目标起点位姿。');
+};
+
+window.setRawTargetTransformMode = (mode) => {
+    if (!state.rawTargetPoseGroup) {
+        window.createOrShowTargetStartPose();
+    }
+
+    ensureRawTargetTransformControl();
+
+    const safeMode = mode === 'rotate' ? 'rotate' : 'translate';
+    state.rawTargetTransformControl.setMode(safeMode);
+    state.rawTargetTransformControl.setSpace(safeMode === 'rotate' ? 'local' : 'world');
+    state.rawTargetTransformControl.attach(state.rawTargetPoseGroup);
+
+    updateRawTargetPoseReadout(safeMode === 'rotate' ? '已切换为旋转手柄。' : '已切换为平移手柄。');
+};
+
+window.copyInitialPoseToTargetStartPose = () => {
+    const p = getCurrentPoseParamsRad();
+    const pose = {
+        tx: p.tx,
+        ty: p.ty,
+        tz: p.tz,
+        rollDeg: p.rollDeg,
+        pitchDeg: p.pitchDeg,
+        yawDeg: p.yawDeg
+    };
+
+    if (state.rawTargetPoseGroup) {
+        if (state.rawTargetTransformControl) state.rawTargetTransformControl.detach();
+        state.rawScene.remove(state.rawTargetPoseGroup);
+        disposeObjectTree(state.rawTargetPoseGroup);
+    }
+
+    ensureRawViewer();
+    state.rawTargetPoseGroup = createAxisVisualGroup(pose, 'Target Start', '#dcdcaa', 0.9);
+    state.rawTargetPoseGroup.name = 'Target Start Pose';
+    state.rawScene.add(state.rawTargetPoseGroup);
+
+    ensureRawTargetTransformControl();
+    state.rawTargetTransformControl.attach(state.rawTargetPoseGroup);
+    updateRawTargetPoseReadout('已从当前初始位姿复制。');
+};
+
+window.centerTargetStartPoseOnPointCloud = () => {
+    if (!state.rawTargetPoseGroup) {
+        window.createOrShowTargetStartPose();
+    }
+
+    const fallback = getPointCloudCenterPoseFallback();
+    state.rawTargetPoseGroup.position.set(fallback.tx, fallback.ty, fallback.tz);
+    updateRawTargetPoseReadout('目标起点已移动到点云包围盒中心。');
+};
+
+window.applyTargetStartPoseToPCDTransform = () => {
+    if (!state.rawTargetPoseGroup) {
+        alert('请先创建并调整目标起点位姿。');
+        return;
+    }
+
+    const pose = getTargetStartPoseFromGroup();
+    if (!pose) return;
+
+    const modeEl = document.getElementById('pcdTfMode');
+    if (modeEl) modeEl.value = 'reset_start';
+    if (window.updatePCDTransformModeHint) window.updatePCDTransformModeHint();
+
+    document.getElementById('pcdTfCx').value = pose.tx.toFixed(4);
+    document.getElementById('pcdTfCy').value = pose.ty.toFixed(4);
+    document.getElementById('pcdTfCz').value = pose.tz.toFixed(4);
+    document.getElementById('pcdTfRoll').value = pose.rollDeg.toFixed(4);
+    document.getElementById('pcdTfPitch').value = pose.pitchDeg.toFixed(4);
+    document.getElementById('pcdTfYaw').value = pose.yawDeg.toFixed(4);
+    document.getElementById('pcdTfTx').value = '0.0000';
+    document.getElementById('pcdTfTy').value = '0.0000';
+    document.getElementById('pcdTfTz').value = '0.0000';
+
+    const rewrite = document.getElementById('pcdTfRewriteViewpoint');
+    if (rewrite) rewrite.checked = true;
+
+    state.rawTargetPoseParams = pose;
+    saveRawTargetPoseToStorage(pose);
+    updateRawTargetPoseReadout('已写入 PCD 变换导出参数。');
+
+    switchAppMode('editor');
+    const editor = document.getElementById('ws-editor');
+    if (editor) editor.scrollTop = 0;
+};
+
+window.copyTargetStartPoseParams = () => {
+    if (!state.rawTargetPoseGroup) {
+        alert('请先创建目标起点位姿。');
+        return;
+    }
+
+    updateRawTargetPoseReadout();
+    const output = document.getElementById('rawTargetPoseOutput');
+    if (!output) return;
+
+    output.select();
+    document.execCommand('copy');
+
+    const status = document.getElementById('rawTargetPoseStatus');
+    if (status) {
+        status.innerText = '目标起点参数已复制到剪贴板。';
+        status.classList.add('ok');
+    }
+};
+
+window.clearTargetStartPose = () => {
+    if (state.rawTargetTransformControl) {
+        state.rawTargetTransformControl.detach();
+    }
+
+    if (state.rawTargetPoseGroup) {
+        state.rawScene.remove(state.rawTargetPoseGroup);
+        disposeObjectTree(state.rawTargetPoseGroup);
+        state.rawTargetPoseGroup = null;
+    }
+
+    state.rawTargetPoseParams = null;
+
+    try {
+        localStorage.removeItem('ros2_nav_studio_raw_target_start_pose');
+    } catch (err) {
+        // ignore
+    }
+
+    updateRawTargetPoseReadout();
+};
+
+function parseColorInputToHex(value, fallback) {
+    if (typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value)) {
+        return parseInt(value.slice(1), 16);
+    }
+
+    return fallback;
+}
+
+function getRawGridParams() {
+    const sizeInput = parseFloat(document.getElementById('rawGridSize')?.value);
+    const cellInput = parseFloat(document.getElementById('rawGridCell')?.value);
+
+    const size = Number.isFinite(sizeInput) && sizeInput > 0 ? sizeInput : 20.0;
+    const cell = Number.isFinite(cellInput) && cellInput > 0 ? cellInput : 1.0;
+    const divisions = Math.max(1, Math.round(size / cell));
+
+    const centerColor = parseColorInputToHex(
+        document.getElementById('rawGridCenterColor')?.value,
+        0x444444
+    );
+
+    const lineColor = parseColorInputToHex(
+        document.getElementById('rawGridLineColor')?.value,
+        0x222222
+    );
+
+    return { size, cell, divisions, centerColor, lineColor };
+}
+
+window.updateRawGrid = () => {
+    ensureRawViewer();
+    clearRawGrid();
+
+    const params = getRawGridParams();
+    state.rawGrid = new THREE.GridHelper(
+        params.size,
+        params.divisions,
+        params.centerColor,
+        params.lineColor
+    );
+
+    // Three.js GridHelper 默认在 XZ 平面；这里旋转到 ROS 常用 XY 平面，Z 向上。
+    state.rawGrid.rotation.x = Math.PI / 2.0;
+    state.rawScene.add(state.rawGrid);
+
+    const status = document.getElementById('rawGridStatus');
+    if (status) {
+        const actualCell = params.size / params.divisions;
+        status.innerText =
+            `Grid: ${params.size.toFixed(2)}m，总共 ${params.divisions} 格，` +
+            `实际每格 ${actualCell.toFixed(3)}m。`;
+        status.classList.add('ok');
+    }
+};
+
+function makeTextSprite(text, color, scale) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const fontSize = 64;
+    const paddingX = 26;
+    const paddingY = 16;
+
+    ctx.font = `bold ${fontSize}px Segoe UI, Arial, sans-serif`;
+    const metrics = ctx.measureText(text);
+    canvas.width = Math.ceil(metrics.width + paddingX * 2);
+    canvas.height = fontSize + paddingY * 2;
+
+    ctx.font = `bold ${fontSize}px Segoe UI, Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';
+    roundRect(ctx, 0, 0, canvas.width, canvas.height, 18);
+    ctx.fill();
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 5;
+    roundRect(ctx, 2.5, 2.5, canvas.width - 5, canvas.height - 5, 16);
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 1);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+
+    const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false
+    });
+
+    const sprite = new THREE.Sprite(material);
+    const aspect = canvas.width / canvas.height;
+    sprite.scale.set(scale * aspect, scale, 1.0);
+    sprite.renderOrder = 999;
+
+    return sprite;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+    const radius = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+}
+
+function makeAxisLabel(text, dir, color, len) {
+    const labelScale = Math.max(len * 0.16, 0.35);
+    const label = makeTextSprite(text, color, labelScale);
+    const pos = dir.clone().normalize().multiplyScalar(len * 1.14);
+    label.position.copy(pos);
+    return label;
+}
+
+function makeAxisArrow(dir, color, len) {
+    const group = new THREE.Group();
+    const shaftLen = len * 0.82;
+    const radius = Math.max(len * 0.015, 0.01);
+    const coneRadius = Math.max(len * 0.05, 0.035);
+    const coneLen = len * 0.18;
+
+    const material = new THREE.MeshBasicMaterial({ color });
+    const shaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius, radius, shaftLen, 16),
+        material
+    );
+    const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(coneRadius, coneLen, 24),
+        material
+    );
+
+    // Cylinder/Cone 默认沿 Y 轴，先建立 +Y 方向箭头，再旋转到目标方向。
+    shaft.position.y = shaftLen / 2.0;
+    cone.position.y = shaftLen + coneLen / 2.0;
+
+    group.add(shaft);
+    group.add(cone);
+
+    const from = new THREE.Vector3(0, 1, 0);
+    const to = dir.clone().normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(from, to);
+    group.quaternion.copy(q);
+
+    return group;
+}
+
+function createPoseAxisGroup() {
+    const pose = getCurrentPoseParamsRad();
+    const lenInput = parseFloat(document.getElementById('rawAxisLen')?.value);
+    const len = Number.isFinite(lenInput) && lenInput > 0 ? lenInput : 1.0;
+
+    const group = new THREE.Group();
+
+    const xDir = new THREE.Vector3(1, 0, 0);
+    const yDir = new THREE.Vector3(0, 1, 0);
+    const zDir = new THREE.Vector3(0, 0, 1);
+
+    group.add(makeAxisArrow(xDir, 0xff3030, len));
+    group.add(makeAxisArrow(yDir, 0x30ff30, len));
+    group.add(makeAxisArrow(zDir, 0x3080ff, len));
+
+    group.add(makeAxisLabel('Roll', xDir, '#ff3030', len));
+    group.add(makeAxisLabel('Pitch', yDir, '#30ff30', len));
+    group.add(makeAxisLabel('Yaw', zDir, '#3080ff', len));
+
+    const euler = new THREE.Euler(pose.roll, pose.pitch, pose.yaw, 'XYZ');
+    group.quaternion.setFromEuler(euler);
+    group.position.set(pose.tx, pose.ty, pose.tz);
+
+    return group;
+}
+
+window.updatePoseAxisOnly = () => {
+    ensureRawViewer();
+    clearPoseAxis();
+    state.rawAxisGroup = createPoseAxisGroup();
+    state.rawScene.add(state.rawAxisGroup);
+    rebuildRawTargetPoseVisualKeepPose();
+
+    const status = document.getElementById('rawViewerStatus');
+    if (status) {
+        const p = getCurrentPoseParamsRad();
+        status.innerText =
+            `坐标轴已更新：t=(${p.tx.toFixed(2)}, ${p.ty.toFixed(2)}, ${p.tz.toFixed(2)}), ` +
+            `rpy=(${p.rollDeg.toFixed(1)}, ${p.pitchDeg.toFixed(1)}, ${p.yawDeg.toFixed(1)})°`;
+        status.classList.add('ok');
+    }
+};
+
+window.updateRawPointSize = () => {
+    if (!state.rawPointCloud || !state.rawPointCloud.material) return;
+
+    const size = parseFloat(document.getElementById('rawPointSize').value);
+    if (Number.isFinite(size) && size > 0) {
+        state.rawPointCloud.material.size = size;
+        state.rawPointCloud.material.needsUpdate = true;
+    }
+};
+
+function getPointCloudBounds(points) {
+    const box = new THREE.Box3().setFromObject(points);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    return { box, size, center };
+}
+
+window.resetRawViewerCamera = () => {
+    if (!state.rawViewerReady) return;
+
+    let center = new THREE.Vector3(0, 0, 0);
+    let radius = 5.0;
+
+    if (state.rawPointCloud) {
+        const bounds = getPointCloudBounds(state.rawPointCloud);
+        center = bounds.center;
+        radius = Math.max(bounds.size.x, bounds.size.y, bounds.size.z, 1.0);
+    }
+
+    state.rawControls.target.copy(center);
+    state.rawCamera.position.set(
+        center.x + radius * 0.85,
+        center.y - radius * 1.25,
+        center.z + radius * 0.75
+    );
+    state.rawCamera.near = Math.max(radius / 1000.0, 0.01);
+    state.rawCamera.far = Math.max(radius * 20.0, 1000.0);
+    state.rawCamera.updateProjectionMatrix();
+    state.rawControls.update();
+};
+
+window.openRawPCDViewer = () => {
+    const file = document.getElementById('pcdFile').files[0];
+
+    if (!file) {
+        return alert("请先在地图编辑器中选择 PCD 文件");
+    }
+
+    switchAppMode('viewer');
+    ensureRawViewer();
+
+    const status = document.getElementById('rawViewerStatus');
+    status.innerText = "正在加载原始 PCD...";
+    status.classList.remove('ok');
+
+    const loader = new PCDLoader();
+    const url = URL.createObjectURL(file);
+
+    loader.load(
+        url,
+        (points) => {
+            URL.revokeObjectURL(url);
+            clearRawPointCloud();
+
+            const pointSize = parseFloat(document.getElementById('rawPointSize').value);
+
+            if (points.material) points.material.dispose();
+            points.material = new THREE.PointsMaterial({
+                size: Number.isFinite(pointSize) && pointSize > 0 ? pointSize : 0.03,
+                color: 0xd8d8d8,
+                sizeAttenuation: true
+            });
+
+            state.rawPointCloud = points;
+            state.rawPointCloud.name = 'Raw PCD PointCloud';
+            state.rawScene.add(state.rawPointCloud);
+
+            updatePoseAxisOnly();
+            if (state.rawTargetPoseGroup) {
+                ensureRawTargetTransformControl();
+                state.rawTargetTransformControl.attach(state.rawTargetPoseGroup);
+                updateRawTargetPoseReadout('目标起点位姿已恢复。');
+            }
+            resetRawViewerCamera();
+
+            const count = points.geometry.attributes.position.count;
+            status.innerText = `原始 PCD 已加载：${count} 个点。点云未进行 Tx/Ty/Tz/RPY 变换。`;
+            status.classList.add('ok');
+        },
+        undefined,
+        (err) => {
+            URL.revokeObjectURL(url);
+            status.innerText = "原始 PCD 加载失败";
+            console.error(err);
+        }
+    );
+};
+
+window.processPCD = () => {
+    const file = document.getElementById('pcdFile').files[0];
+
+    if (!file) {
+        return alert("请先选择 PCD 文件");
+    }
+
+    const status = document.getElementById('pcdStatus');
+    status.innerText = "正在解析 PCD...";
+    status.classList.remove('ok');
+
+    if (document.getElementById('pcdAutoViewpoint').checked) {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            const header = parsePCDViewpoint(e.target.result);
+
+            if (header) {
+                document.getElementById('pcdTx').value = header.tx.toFixed(4);
+                document.getElementById('pcdTy').value = header.ty.toFixed(4);
+                document.getElementById('pcdTz').value = header.tz.toFixed(4);
+
+                document.getElementById('pcdRoll').value = header.roll.toFixed(4);
+                document.getElementById('pcdPitch').value = header.pitch.toFixed(4);
+                document.getElementById('pcdYaw').value = header.yaw.toFixed(4);
+
+                status.innerText =
+                    `VIEWPOINT: ` +
+                    `t=(${header.tx.toFixed(2)}, ${header.ty.toFixed(2)}, ${header.tz.toFixed(2)}), ` +
+                    `rpy=(${header.roll.toFixed(2)}, ${header.pitch.toFixed(2)}, ${header.yaw.toFixed(2)})° — 已自动填入`;
+
+                status.classList.add('ok');
+            } else {
+                status.innerText = "未找到 VIEWPOINT，使用手动参数";
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+    }
+
+    const loader = new PCDLoader();
+
+    loader.load(
+        URL.createObjectURL(file),
+        (points) => {
+            status.innerText =
+                `点数: ${points.geometry.attributes.position.count}, 正在栅格化...`;
+
+            status.classList.add('ok');
+
+            setTimeout(() => rasterizePCD(points), 50);
+        },
+        undefined,
+        (err) => {
+            status.innerText = "加载失败";
+            console.error(err);
+        }
+    );
+};
+
+function parsePCDViewpoint(buffer) {
+    const headerStr = new TextDecoder().decode(buffer.slice(0, 4096));
+    const lines = headerStr.split('\n');
+
+    let viewpointLine = null;
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+
+        if (trimmed.startsWith('VIEWPOINT')) {
+            viewpointLine = trimmed;
+            break;
+        }
+    }
+
+    if (!viewpointLine) return null;
+
+    const parts = viewpointLine.split(/\s+/);
+
+    if (parts.length < 8) return null;
+
+    const tx = parseFloat(parts[1]);
+    const ty = parseFloat(parts[2]);
+    const tz = parseFloat(parts[3]);
+
+    const qw = parseFloat(parts[4]);
+    const qx = parseFloat(parts[5]);
+    const qy = parseFloat(parts[6]);
+    const qz = parseFloat(parts[7]);
+
+    if ([tx, ty, tz, qw, qx, qy, qz].some(v => Number.isNaN(v))) {
+        return null;
+    }
+
+    const euler = quaternionToEuler(qw, qx, qy, qz);
+
+    return {
+        tx,
+        ty,
+        tz,
+        roll: euler.roll * 180.0 / Math.PI,
+        pitch: euler.pitch * 180.0 / Math.PI,
+        yaw: euler.yaw * 180.0 / Math.PI
+    };
+}
+
+function quaternionToEuler(qw, qx, qy, qz) {
+    const sinr_cosp = 2.0 * (qw * qx + qy * qz);
+    const cosr_cosp = 1.0 - 2.0 * (qx * qx + qy * qy);
+    const roll = Math.atan2(sinr_cosp, cosr_cosp);
+
+    const sinp = 2.0 * (qw * qy - qz * qx);
+
+    let pitch;
+
+    if (Math.abs(sinp) >= 1.0) {
+        pitch = Math.sign(sinp) * Math.PI / 2.0;
+    } else {
+        pitch = Math.asin(sinp);
+    }
+
+    const siny_cosp = 2.0 * (qw * qz + qx * qy);
+    const cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz);
+    const yaw = Math.atan2(siny_cosp, cosy_cosp);
+
+    return { roll, pitch, yaw };
+}
+
+function transformPointLiDARToWorld(lx, ly, lz, tx, ty, tz, roll, pitch, yaw) {
+    const cr = Math.cos(roll);
+    const sr = Math.sin(roll);
+
+    const cp = Math.cos(pitch);
+    const sp = Math.sin(pitch);
+
+    const cy = Math.cos(yaw);
+    const sy = Math.sin(yaw);
+
+    /*
+     * ROS 常用欧拉角顺序：
+     * R = Rz(yaw) * Ry(pitch) * Rx(roll)
+     *
+     * P_world = R * P_lidar + t
+     */
+
+    const r00 = cy * cp;
+    const r01 = cy * sp * sr - sy * cr;
+    const r02 = cy * sp * cr + sy * sr;
+
+    const r10 = sy * cp;
+    const r11 = sy * sp * sr + cy * cr;
+    const r12 = sy * sp * cr - cy * sr;
+
+    const r20 = -sp;
+    const r21 = cp * sr;
+    const r22 = cp * cr;
+
+    return {
+        x: r00 * lx + r01 * ly + r02 * lz + tx,
+        y: r10 * lx + r11 * ly + r12 * lz + ty,
+        z: r20 * lx + r21 * ly + r22 * lz + tz
+    };
+}
+
+function rasterizePCD(points) {
+    const res = parseFloat(document.getElementById('pcdRes').value);
+    const minZ = parseFloat(document.getElementById('pcdMinZ').value);
+    const maxZ = parseFloat(document.getElementById('pcdMaxZ').value);
+
+    const tx = parseFloat(document.getElementById('pcdTx').value) || 0.0;
+    const ty = parseFloat(document.getElementById('pcdTy').value) || 0.0;
+    const tz = parseFloat(document.getElementById('pcdTz').value) || 0.0;
+
+    const rollDeg = parseFloat(document.getElementById('pcdRoll').value) || 0.0;
+    const pitchDeg = parseFloat(document.getElementById('pcdPitch').value) || 0.0;
+    const yawDeg = parseFloat(document.getElementById('pcdYaw').value) || 0.0;
+
+    const rollRad = rollDeg * Math.PI / 180.0;
+    const pitchRad = pitchDeg * Math.PI / 180.0;
+    const yawRad = yawDeg * Math.PI / 180.0;
+
+    if (!Number.isFinite(res) || res <= 0) {
+        return alert("分辨率必须大于 0");
+    }
+
+    if (!Number.isFinite(minZ) || !Number.isFinite(maxZ) || minZ >= maxZ) {
+        return alert("Min Z / Max Z 参数不合法");
+    }
+
+    const pos = points.geometry.attributes.position;
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    const validPoints = [];
+
+    for (let i = 0; i < pos.count; i++) {
+        const lx = pos.getX(i);
+        const ly = pos.getY(i);
+        const lz = pos.getZ(i);
+
+        const p = transformPointLiDARToWorld(
+            lx,
+            ly,
+            lz,
+            tx,
+            ty,
+            tz,
+            rollRad,
+            pitchRad,
+            yawRad
+        );
+
+        if (p.z >= minZ && p.z <= maxZ) {
+            validPoints.push(p);
+
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        }
+    }
+
+    if (validPoints.length === 0) {
+        return alert("指定高度范围内没有点云。请检查 Tz / Roll / Pitch / Yaw / MinZ / MaxZ。");
+    }
+
+    const padding = 1.0;
+
+    minX -= padding;
+    maxX += padding;
+    minY -= padding;
+    maxY += padding;
+
+    const w = Math.ceil((maxX - minX) / res);
+    const h = Math.ceil((maxY - minY) / res);
+
+    if (w <= 0 || h <= 0 || !Number.isFinite(w) || !Number.isFinite(h)) {
+        return alert("地图尺寸计算失败，请检查点云或位姿参数。");
+    }
+
+    resizeCanvas(w, h);
+
+    state.resolution = res;
+    state.originX = minX;
+    state.originY = minY;
+    state.flipY = false;
+
+    syncGlobalInputs();
+
+    ctxMap.fillStyle = "#ffffff";
+    ctxMap.fillRect(0, 0, w, h);
+
+    ctxMap.fillStyle = "#000000";
+
+    for (const p of validPoints) {
+        const col = Math.floor((p.x - minX) / res);
+        const row = Math.floor((maxY - p.y) / res);
+
+        if (col >= 0 && col < w && row >= 0 && row < h) {
+            ctxMap.fillRect(col, row, 1, 1);
+        }
+    }
+
+    resetView();
+    renderUI();
+
+    const status = document.getElementById('pcdStatus');
+
+    if (status) {
+        status.innerText =
+            `完成：有效点 ${validPoints.length} / ${pos.count}，` +
+            `尺寸 ${w} x ${h}，res=${res}`;
+
+        status.classList.add('ok');
+    }
+}
+
+
+window.updatePCDTransformModeHint = () => {
+    const mode = document.getElementById('pcdTfMode')?.value || 'reset_start';
+    const hint = document.getElementById('pcdTfHint');
+
+    const cLabels = [
+        document.getElementById('pcdTfCxLabel'),
+        document.getElementById('pcdTfCyLabel'),
+        document.getElementById('pcdTfCzLabel')
+    ];
+
+    const tLabels = [
+        document.getElementById('pcdTfTxLabel'),
+        document.getElementById('pcdTfTyLabel'),
+        document.getElementById('pcdTfTzLabel')
+    ];
+
+    if (mode === 'reset_start') {
+        if (hint) {
+            hint.innerText =
+                '公式：P_out = R_startᵀ · (P_in - Start) + Out。' +
+                '适合把旧地图中的任意位姿作为新 PCD 的建图起点。Out 一般保持 0。';
+        }
+
+        ['Start X (m)', 'Start Y (m)', 'Start Z (m)'].forEach((txt, i) => {
+            if (cLabels[i]) cLabels[i].innerText = txt;
+        });
+
+        ['Out X (m)', 'Out Y (m)', 'Out Z (m)'].forEach((txt, i) => {
+            if (tLabels[i]) tLabels[i].innerText = txt;
+        });
+    } else {
+        if (hint) {
+            hint.innerText =
+                '公式：P_out = R · (P_in - Center) + Center + T。' +
+                '适合直接把整张 PCD 旋转、平移到另一个位置。';
+        }
+
+        ['Center X (m)', 'Center Y (m)', 'Center Z (m)'].forEach((txt, i) => {
+            if (cLabels[i]) cLabels[i].innerText = txt;
+        });
+
+        ['Tx (m)', 'Ty (m)', 'Tz (m)'].forEach((txt, i) => {
+            if (tLabels[i]) tLabels[i].innerText = txt;
+        });
+    }
+};
+
+function getPCDTransformParams() {
+    const mode = document.getElementById('pcdTfMode')?.value || 'reset_start';
+
+    const cx = parseFloat(document.getElementById('pcdTfCx')?.value) || 0.0;
+    const cy = parseFloat(document.getElementById('pcdTfCy')?.value) || 0.0;
+    const cz = parseFloat(document.getElementById('pcdTfCz')?.value) || 0.0;
+
+    const tx = parseFloat(document.getElementById('pcdTfTx')?.value) || 0.0;
+    const ty = parseFloat(document.getElementById('pcdTfTy')?.value) || 0.0;
+    const tz = parseFloat(document.getElementById('pcdTfTz')?.value) || 0.0;
+
+    const rollDeg = parseFloat(document.getElementById('pcdTfRoll')?.value) || 0.0;
+    const pitchDeg = parseFloat(document.getElementById('pcdTfPitch')?.value) || 0.0;
+    const yawDeg = parseFloat(document.getElementById('pcdTfYaw')?.value) || 0.0;
+
+    return {
+        mode,
+        cx,
+        cy,
+        cz,
+        tx,
+        ty,
+        tz,
+        roll: rollDeg * Math.PI / 180.0,
+        pitch: pitchDeg * Math.PI / 180.0,
+        yaw: yawDeg * Math.PI / 180.0,
+        rollDeg,
+        pitchDeg,
+        yawDeg,
+        rewriteViewpoint: !!document.getElementById('pcdTfRewriteViewpoint')?.checked
+    };
+}
+
+function makeRotationMatrixRPY(roll, pitch, yaw) {
+    const cr = Math.cos(roll);
+    const sr = Math.sin(roll);
+
+    const cp = Math.cos(pitch);
+    const sp = Math.sin(pitch);
+
+    const cy = Math.cos(yaw);
+    const sy = Math.sin(yaw);
+
+    // ROS 常用顺序：R = Rz(yaw) * Ry(pitch) * Rx(roll)
+    return [
+        [cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr],
+        [sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr],
+        [-sp, cp * sr, cp * cr]
+    ];
+}
+
+function applyRotation(R, x, y, z) {
+    return {
+        x: R[0][0] * x + R[0][1] * y + R[0][2] * z,
+        y: R[1][0] * x + R[1][1] * y + R[1][2] * z,
+        z: R[2][0] * x + R[2][1] * y + R[2][2] * z
+    };
+}
+
+function applyRotationTranspose(R, x, y, z) {
+    return {
+        x: R[0][0] * x + R[1][0] * y + R[2][0] * z,
+        y: R[0][1] * x + R[1][1] * y + R[2][1] * z,
+        z: R[0][2] * x + R[1][2] * y + R[2][2] * z
+    };
+}
+
+function transformPCDPoint(x, y, z, params) {
+    const R = makeRotationMatrixRPY(params.roll, params.pitch, params.yaw);
+
+    if (params.mode === 'reset_start') {
+        // 把旧 PCD 坐标系中的 Start 位姿变成导出 PCD 的新起点。
+        // Start 的朝向为 R，因此旧地图点先减去 Start，再乘 R^T 转到新起点局部坐标系。
+        const local = applyRotationTranspose(
+            R,
+            x - params.cx,
+            y - params.cy,
+            z - params.cz
+        );
+
+        return {
+            x: local.x + params.tx,
+            y: local.y + params.ty,
+            z: local.z + params.tz
+        };
+    }
+
+    // 直接刚体变换：围绕 Center 旋转，再额外平移 T。
+    const rotated = applyRotation(
+        R,
+        x - params.cx,
+        y - params.cy,
+        z - params.cz
+    );
+
+    return {
+        x: rotated.x + params.cx + params.tx,
+        y: rotated.y + params.cy + params.ty,
+        z: rotated.z + params.cz + params.tz
+    };
+}
+
+function parsePCDHeaderForExport(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let dataLineEnd = -1;
+    let headerText = '';
+
+    // PCD header 是 ASCII，逐行读取直到 DATA 行结束。
+    for (let i = 0; i < bytes.length; i++) {
+        const ch = String.fromCharCode(bytes[i]);
+        headerText += ch;
+
+        if (ch === '\n') {
+            const lines = headerText.split(/\r?\n/);
+            const lastComplete = lines[lines.length - 2]?.trim() || '';
+            if (/^DATA\s+/i.test(lastComplete)) {
+                dataLineEnd = i + 1;
+                break;
+            }
+        }
+    }
+
+    if (dataLineEnd < 0) {
+        throw new Error('没有找到 PCD DATA 行，文件头不完整。');
+    }
+
+    const lines = headerText.split(/\r?\n/).filter(line => line.length > 0);
+    const meta = {
+        headerText,
+        dataStart: dataLineEnd,
+        fields: [],
+        size: [],
+        type: [],
+        count: [],
+        width: 0,
+        height: 1,
+        points: 0,
+        data: '',
+        lines
+    };
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (line.length === 0 || line.startsWith('#')) continue;
+
+        const parts = line.split(/\s+/);
+        const key = parts[0].toUpperCase();
+
+        if (key === 'FIELDS') meta.fields = parts.slice(1);
+        else if (key === 'SIZE') meta.size = parts.slice(1).map(v => parseInt(v, 10));
+        else if (key === 'TYPE') meta.type = parts.slice(1);
+        else if (key === 'COUNT') meta.count = parts.slice(1).map(v => parseInt(v, 10));
+        else if (key === 'WIDTH') meta.width = parseInt(parts[1], 10);
+        else if (key === 'HEIGHT') meta.height = parseInt(parts[1], 10);
+        else if (key === 'POINTS') meta.points = parseInt(parts[1], 10);
+        else if (key === 'DATA') meta.data = (parts[1] || '').toLowerCase();
+    }
+
+    if (meta.fields.length === 0 || meta.size.length === 0 || meta.type.length === 0) {
+        throw new Error('PCD 头缺少 FIELDS / SIZE / TYPE。');
+    }
+
+    if (meta.count.length === 0) {
+        meta.count = new Array(meta.fields.length).fill(1);
+    }
+
+    if (meta.points <= 0) {
+        meta.points = meta.width * meta.height;
+    }
+
+    if (meta.points <= 0) {
+        throw new Error('无法确定 PCD 点数。');
+    }
+
+    const xIdx = meta.fields.indexOf('x');
+    const yIdx = meta.fields.indexOf('y');
+    const zIdx = meta.fields.indexOf('z');
+
+    if (xIdx < 0 || yIdx < 0 || zIdx < 0) {
+        throw new Error('PCD 必须包含 x/y/z 字段。');
+    }
+
+    meta.xIdx = xIdx;
+    meta.yIdx = yIdx;
+    meta.zIdx = zIdx;
+
+    return meta;
+}
+
+function buildUpdatedPCDHeader(meta, rewriteViewpoint) {
+    const out = [];
+    let hasViewpoint = false;
+
+    for (const rawLine of meta.lines) {
+        const line = rawLine.trim();
+
+        if (/^VIEWPOINT\s+/i.test(line)) {
+            hasViewpoint = true;
+            out.push(rewriteViewpoint ? 'VIEWPOINT 0 0 0 1 0 0 0' : rawLine);
+        } else if (/^DATA\s+/i.test(line)) {
+            if (!hasViewpoint && rewriteViewpoint) {
+                out.push('VIEWPOINT 0 0 0 1 0 0 0');
+            }
+            out.push(rawLine);
+        } else {
+            out.push(rawLine);
+        }
+    }
+
+    return out.join('\n') + '\n';
+}
+
+function fieldScalarTokenOffset(meta, fieldIdx) {
+    let offset = 0;
+
+    for (let i = 0; i < fieldIdx; i++) {
+        offset += meta.count[i] || 1;
+    }
+
+    return offset;
+}
+
+function pointScalarCount(meta) {
+    return meta.count.reduce((acc, v) => acc + (v || 1), 0);
+}
+
+function formatPCDNumber(v) {
+    if (!Number.isFinite(v)) return 'nan';
+    if (Math.abs(v) >= 100000 || (Math.abs(v) > 0 && Math.abs(v) < 0.0001)) {
+        return v.toExponential(8);
+    }
+    return Number.parseFloat(v.toFixed(8)).toString();
+}
+
+function transformAsciiPCD(buffer, meta, params) {
+    const decoder = new TextDecoder();
+    const bodyText = decoder.decode(buffer.slice(meta.dataStart));
+    const rows = bodyText.split(/\r?\n/);
+
+    const xTok = fieldScalarTokenOffset(meta, meta.xIdx);
+    const yTok = fieldScalarTokenOffset(meta, meta.yIdx);
+    const zTok = fieldScalarTokenOffset(meta, meta.zIdx);
+    const expectedTokens = pointScalarCount(meta);
+
+    const outRows = [];
+    let transformed = 0;
+
+    for (const rawRow of rows) {
+        const row = rawRow.trim();
+        if (row.length === 0) continue;
+
+        const tokens = row.split(/\s+/);
+        if (tokens.length < expectedTokens) {
+            outRows.push(rawRow);
+            continue;
+        }
+
+        const x = parseFloat(tokens[xTok]);
+        const y = parseFloat(tokens[yTok]);
+        const z = parseFloat(tokens[zTok]);
+
+        if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+            const p = transformPCDPoint(x, y, z, params);
+            tokens[xTok] = formatPCDNumber(p.x);
+            tokens[yTok] = formatPCDNumber(p.y);
+            tokens[zTok] = formatPCDNumber(p.z);
+            transformed++;
+        }
+
+        outRows.push(tokens.join(' '));
+    }
+
+    const header = buildUpdatedPCDHeader(meta, params.rewriteViewpoint);
+    return {
+        blob: new Blob([header + outRows.join('\n') + '\n'], { type: 'application/octet-stream' }),
+        transformed
+    };
+}
+
+function fieldByteOffsets(meta) {
+    const offsets = [];
+    let byteOffset = 0;
+
+    for (let i = 0; i < meta.fields.length; i++) {
+        offsets[i] = byteOffset;
+        byteOffset += (meta.size[i] || 0) * (meta.count[i] || 1);
+    }
+
+    return {
+        offsets,
+        pointStep: byteOffset
+    };
+}
+
+function readPCDScalar(view, offset, type, size) {
+    const littleEndian = true;
+    const t = (type || '').toUpperCase();
+
+    if (t === 'F' && size === 4) return view.getFloat32(offset, littleEndian);
+    if (t === 'F' && size === 8) return view.getFloat64(offset, littleEndian);
+    if (t === 'I' && size === 1) return view.getInt8(offset);
+    if (t === 'I' && size === 2) return view.getInt16(offset, littleEndian);
+    if (t === 'I' && size === 4) return view.getInt32(offset, littleEndian);
+    if (t === 'U' && size === 1) return view.getUint8(offset);
+    if (t === 'U' && size === 2) return view.getUint16(offset, littleEndian);
+    if (t === 'U' && size === 4) return view.getUint32(offset, littleEndian);
+
+    throw new Error(`不支持读取字段类型 TYPE=${type}, SIZE=${size}`);
+}
+
+function writePCDScalar(view, offset, type, size, value) {
+    const littleEndian = true;
+    const t = (type || '').toUpperCase();
+
+    if (t === 'F' && size === 4) return view.setFloat32(offset, value, littleEndian);
+    if (t === 'F' && size === 8) return view.setFloat64(offset, value, littleEndian);
+
+    // x/y/z 理论上应为浮点。这里保留整数写回能力，但不建议用整数坐标 PCD。
+    if (t === 'I' && size === 1) return view.setInt8(offset, Math.round(value));
+    if (t === 'I' && size === 2) return view.setInt16(offset, Math.round(value), littleEndian);
+    if (t === 'I' && size === 4) return view.setInt32(offset, Math.round(value), littleEndian);
+    if (t === 'U' && size === 1) return view.setUint8(offset, Math.max(0, Math.round(value)));
+    if (t === 'U' && size === 2) return view.setUint16(offset, Math.max(0, Math.round(value)), littleEndian);
+    if (t === 'U' && size === 4) return view.setUint32(offset, Math.max(0, Math.round(value)), littleEndian);
+
+    throw new Error(`不支持写入字段类型 TYPE=${type}, SIZE=${size}`);
+}
+
+function transformBinaryPCD(buffer, meta, params) {
+    const { offsets, pointStep } = fieldByteOffsets(meta);
+    const expectedBytes = meta.dataStart + pointStep * meta.points;
+
+    if (buffer.byteLength < expectedBytes) {
+        throw new Error('Binary PCD 数据长度小于 header 声明长度。');
+    }
+
+    const header = buildUpdatedPCDHeader(meta, params.rewriteViewpoint);
+    const headerBytes = new TextEncoder().encode(header);
+    const outBytes = new Uint8Array(headerBytes.length + pointStep * meta.points);
+    outBytes.set(headerBytes, 0);
+
+    // 复制原始二进制点数据，只覆盖 x/y/z 字段。
+    outBytes.set(new Uint8Array(buffer, meta.dataStart, pointStep * meta.points), headerBytes.length);
+
+    const view = new DataView(outBytes.buffer);
+    const dataStart = headerBytes.length;
+
+    let transformed = 0;
+
+    for (let i = 0; i < meta.points; i++) {
+        const base = dataStart + i * pointStep;
+
+        const xOffset = base + offsets[meta.xIdx];
+        const yOffset = base + offsets[meta.yIdx];
+        const zOffset = base + offsets[meta.zIdx];
+
+        const x = readPCDScalar(view, xOffset, meta.type[meta.xIdx], meta.size[meta.xIdx]);
+        const y = readPCDScalar(view, yOffset, meta.type[meta.yIdx], meta.size[meta.yIdx]);
+        const z = readPCDScalar(view, zOffset, meta.type[meta.zIdx], meta.size[meta.zIdx]);
+
+        if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+            const p = transformPCDPoint(x, y, z, params);
+            writePCDScalar(view, xOffset, meta.type[meta.xIdx], meta.size[meta.xIdx], p.x);
+            writePCDScalar(view, yOffset, meta.type[meta.yIdx], meta.size[meta.yIdx], p.y);
+            writePCDScalar(view, zOffset, meta.type[meta.zIdx], meta.size[meta.zIdx], p.z);
+            transformed++;
+        }
+    }
+
+    return {
+        blob: new Blob([outBytes], { type: 'application/octet-stream' }),
+        transformed
+    };
+}
+
+function makeTransformedPCDName(filename, params) {
+    const dot = filename.toLowerCase().endsWith('.pcd') ? filename.length - 4 : filename.length;
+    const base = filename.slice(0, dot);
+    const suffix = params.mode === 'reset_start' ? '_reset_start' : '_rigid_tf';
+    return `${base}${suffix}.pcd`;
+}
+
+window.exportTransformedPCD = async () => {
+    const file = document.getElementById('pcdFile').files[0];
+
+    if (!file) {
+        return alert('请先选择 PCD 文件');
+    }
+
+    const status = document.getElementById('pcdTfStatus');
+    if (status) {
+        status.innerText = '正在读取 PCD 并执行刚体变换...';
+        status.classList.remove('ok');
+    }
+
+    try {
+        const buffer = await file.arrayBuffer();
+        const meta = parsePCDHeaderForExport(buffer);
+        const params = getPCDTransformParams();
+
+        let result;
+
+        if (meta.data === 'ascii') {
+            result = transformAsciiPCD(buffer, meta, params);
+        } else if (meta.data === 'binary') {
+            result = transformBinaryPCD(buffer, meta, params);
+        } else if (meta.data === 'binary_compressed') {
+            throw new Error('暂不支持 DATA binary_compressed。请先用 pcl_converter 转成 ascii 或 binary PCD。');
+        } else {
+            throw new Error(`不支持的 PCD DATA 类型：${meta.data}`);
+        }
+
+        const filename = makeTransformedPCDName(file.name, params);
+        saveFile(result.blob, filename, 'application/octet-stream');
+
+        if (status) {
+            const modeTxt = params.mode === 'reset_start' ? '重设起点' : '直接刚体变换';
+            status.innerText =
+                `已导出 ${filename}：${modeTxt}，处理 ${result.transformed} / ${meta.points} 个点，DATA=${meta.data}`;
+            status.classList.add('ok');
+        }
+    } catch (err) {
+        console.error(err);
+        if (status) {
+            status.innerText = `PCD 变换导出失败：${err.message}`;
+        }
+        alert(`PCD 变换导出失败：${err.message}`);
+    }
+};
+
+window.loadExistingMap = async () => {
+    const fy = document.getElementById('yamlFile').files[0];
+    const fp = document.getElementById('pgmFile').files[0];
+
+    if (!fy || !fp) {
+        return alert("请同时选择 .yaml 和图片文件");
+    }
+
+    const txt = await fy.text();
+
+    const resMatch = txt.match(/resolution\s*:\s*([\d\.]+)/);
+    const orgMatch = txt.match(/origin\s*:\s*\[\s*([-\d\.]+)\s*,\s*([-\d\.]+)/);
+
+    if (resMatch) {
+        state.resolution = parseFloat(resMatch[1]);
+    }
+
+    if (orgMatch) {
+        state.originX = parseFloat(orgMatch[1]);
+        state.originY = parseFloat(orgMatch[2]);
+    }
+
+    syncGlobalInputs();
+
+    if (fp.name.endsWith('.pgm')) {
+        const buf = await fp.arrayBuffer();
+        parsePGM(buf);
+    } else {
+        const img = new Image();
+
+        img.onload = () => {
+            resizeCanvas(img.width, img.height);
+            ctxMap.drawImage(img, 0, 0);
+            resetView();
+            renderUI();
+        };
+
+        img.src = URL.createObjectURL(fp);
+    }
+};
+
+function parsePGM(buffer) {
+    const view = new DataView(buffer);
+    let offset = 0;
+
+    function next() {
+        let t = "";
+        let isComm = false;
+
+        while (offset < buffer.byteLength) {
+            const c = String.fromCharCode(view.getUint8(offset++));
+
+            if (c === '#') isComm = true;
+            if (c === '\n') isComm = false;
+
+            if (isComm) continue;
+
+            if (/\s/.test(c)) {
+                if (t.length > 0) return t;
+            } else {
+                t += c;
+            }
+        }
+
+        return null;
+    }
+
+    const type = next();
+
+    if (type !== 'P5' && type !== 'P2') {
+        return alert("不支持的 PGM 格式");
+    }
+
+    const w = parseInt(next());
+    const h = parseInt(next());
+    const max = parseInt(next());
+
+    resizeCanvas(w, h);
+
+    const imgData = ctxMap.createImageData(w, h);
+    const d = imgData.data;
+
+    for (let i = 0; i < w * h; i++) {
+        let val;
+
+        if (type === 'P5') {
+            val = view.getUint8(offset++);
+        } else {
+            val = parseInt(next());
+        }
+
+        d[i * 4] = val;
+        d[i * 4 + 1] = val;
+        d[i * 4 + 2] = val;
+        d[i * 4 + 3] = 255;
+    }
+
+    ctxMap.putImageData(imgData, 0, 0);
+
+    resetView();
+    renderUI();
+}
+
+function paintOnMap(e) {
+    const pos = getMapPos(e);
+
+    if (!pos) return;
+
+    const sz = parseInt(document.getElementById('brushSize').value);
+
+    if (state.editorTool === 'draw') {
+        ctxMap.fillStyle = '#000000';
+    } else if (state.editorTool === 'erase') {
+        // 擦除后恢复为明确 free 区域，与 PCD 生成背景一致
+        ctxMap.fillStyle = '#ffffff';
+    }
+
+    ctxMap.beginPath();
+    ctxMap.arc(pos.x, pos.y, sz / 2, 0, Math.PI * 2);
+    ctxMap.fill();
+}
+
+function updateWaypointCount() {
+    document.getElementById('wp-count').innerText = state.waypoints.length;
+}
+
+window.undoWaypoint = () => {
+    state.waypoints.pop();
+
+    updateWaypointCount();
+    generateWaypointOutput();
+    renderUI();
+};
+
+window.clearWaypoints = () => {
+    if (confirm('清空所有航点？')) {
+        state.waypoints = [];
+
+        updateWaypointCount();
+        generateWaypointOutput();
+        renderUI();
+    }
+};
+
+window.generateWaypointOutput = () => {
+    if (state.waypoints.length === 0) {
+        document.getElementById('wp-output').value = "";
+        return;
+    }
+
+    let txt = "patrol_sender:\n  ros__parameters:\n";
+    txt += `    num_waypoints: ${state.waypoints.length}\n`;
+    txt += `    # 格式: [x, y, yaw(弧度)]\n`;
+
+    state.waypoints.forEach((wp, i) => {
+        txt += `    waypoint_${i}: [${wp.wx.toFixed(2)}, ${wp.wy.toFixed(2)}, ${wp.rosYaw.toFixed(2)}]  # 点${i}\n`;
+    });
+
+    document.getElementById('wp-output').value = txt;
+};
+
+window.copyWaypoints = () => {
+    document.getElementById('wp-output').select();
+    document.execCommand("copy");
+    alert("已复制到剪贴板");
+};
+
+function renderUI(currentMousePos = null) {
+    ctxUI.clearRect(0, 0, state.width, state.height);
+
+    drawOriginAxis();
+
+    state.waypoints.forEach((wp, i) => {
+        drawArrow(wp.mapX, wp.mapY, wp.pixelYaw, i, '#0f0');
+    });
+
+    if (state.mode === 'planner' && plannerStart && currentMousePos) {
+        const dx = currentMousePos.x - plannerStart.x;
+        const dy = currentMousePos.y - plannerStart.y;
+        const angle = Math.atan2(dy, dx);
+
+        drawArrow(plannerStart.x, plannerStart.y, angle, state.waypoints.length, '#ff0');
+    }
+}
+
+function drawOriginAxis() {
+    const px = -state.originX / state.resolution;
+    const py = state.height + (state.originY / state.resolution);
+
+    const len = 50;
+
+    ctxUI.lineWidth = 3;
+
+    ctxUI.beginPath();
+    ctxUI.strokeStyle = 'red';
+    ctxUI.moveTo(px, py);
+    ctxUI.lineTo(px + len, py);
+    ctxUI.stroke();
+
+    ctxUI.beginPath();
+    ctxUI.strokeStyle = '#0f0';
+    ctxUI.moveTo(px, py);
+    ctxUI.lineTo(px, py - len);
+    ctxUI.stroke();
+
+    ctxUI.fillStyle = 'yellow';
+    ctxUI.font = '14px Arial';
+    ctxUI.fillText("(0,0)", px + 5, py - 5);
+}
+
+function drawArrow(x, y, angle, label, color) {
+    const len = 40;
+
+    ctxUI.save();
+    ctxUI.translate(x, y);
+    ctxUI.rotate(angle);
+
+    ctxUI.beginPath();
+    ctxUI.moveTo(0, 0);
+    ctxUI.lineTo(len, 0);
+    ctxUI.lineTo(len - 10, -5);
+    ctxUI.lineTo(len - 10, 5);
+    ctxUI.lineTo(len, 0);
+
+    ctxUI.strokeStyle = color;
+    ctxUI.lineWidth = 2;
+    ctxUI.stroke();
+
+    ctxUI.fillStyle = color;
+    ctxUI.fill();
+
+    ctxUI.beginPath();
+    ctxUI.arc(0, 0, 4, 0, Math.PI * 2);
+    ctxUI.fill();
+
+    ctxUI.restore();
+
+    ctxUI.fillStyle = 'white';
+    ctxUI.font = '16px Arial';
+    ctxUI.strokeStyle = 'black';
+    ctxUI.lineWidth = 3;
+    ctxUI.strokeText(label, x + 10, y + 10);
+    ctxUI.fillText(label, x + 10, y + 10);
+}
+
+function mapPixelToWorld(px, py) {
+    const wx = state.originX + px * state.resolution;
+    const wy = state.originY + (state.height - py) * state.resolution;
+
+    return { x: wx, y: wy };
+}
+
+window.exportMapAssets = () => {
+    const w = state.width;
+    const h = state.height;
+
+    const imgData = ctxMap.getImageData(0, 0, w, h).data;
+
+    function quantizeGray(val) {
+        if (val < 85) return 0;
+        if (val > 170) return 255;
+        return 205;
+    }
+
+    const header = `P5\n${w} ${h}\n255\n`;
+    const headerBytes = new TextEncoder().encode(header);
+    const pixelBytes = new Uint8Array(w * h);
+
+    for (let i = 0; i < w * h; i++) {
+        pixelBytes[i] = quantizeGray(imgData[i * 4]);
+    }
+
+    const pgmBuffer = new Uint8Array(headerBytes.length + pixelBytes.length);
+
+    pgmBuffer.set(headerBytes, 0);
+    pgmBuffer.set(pixelBytes, headerBytes.length);
+
+    saveFile(pgmBuffer, 'map.pgm', 'application/octet-stream');
+
+    const yaml = `image: map.pgm
+mode: trinary
+resolution: ${state.resolution}
+origin: [${state.originX}, ${state.originY}, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.196\n`;
+
+    saveFile(yaml, 'map.yaml', 'text/yaml');
+};
+
+function saveFile(content, name, type) {
+    const blob =
+        content instanceof Uint8Array
+            ? new Blob([content], { type: 'application/octet-stream' })
+            : new Blob([content], { type });
+
+    const a = document.createElement('a');
+
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+}
+
+window.updateGlobalParams = () => {
+    state.resolution = parseFloat(document.getElementById('globalRes').value);
+    state.originX = parseFloat(document.getElementById('globalOrgX').value);
+    state.originY = parseFloat(document.getElementById('globalOrgY').value);
+    state.flipY = document.getElementById('globalFlipY').checked;
+
+    renderUI();
+    generateWaypointOutput();
+};
+
+function syncGlobalInputs() {
+    document.getElementById('globalRes').value = state.resolution;
+    document.getElementById('globalOrgX').value = state.originX;
+    document.getElementById('globalOrgY').value = state.originY;
+}
+
+function renderLoop() {
+    requestAnimationFrame(renderLoop);
+
+    if (state.rawViewerReady && state.mode === 'viewer') {
+        state.rawControls.update();
+        state.rawRenderer.render(state.rawScene, state.rawCamera);
+    }
+}
+
+init();
+</script>
+
+</body>
+</html>

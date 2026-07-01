@@ -1,0 +1,20 @@
+std_msgs/Header header
+uint8 game_state
+uint16 remaining_time
+uint8 self_color
+uint16 self_health
+uint8 at_base_area
+uint8 at_castle_area
+uint8 at_supply_area_unoverlap
+uint8 at_supply_area_overlap
+uint8 supply_area_overlap_status
+uint8 supply_area_unoverlap_status
+uint8 auto_aiming_status
+uint8 energy_percent
+uint16 shoot_heat
+uint16 remaining_bullet
+uint16 enermy_outpost_hp
+uint16 my_outpost_hp
+uint16 enermy_base_hp
+uint16 my_base_hp
+

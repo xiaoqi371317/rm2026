@@ -1,0 +1,76 @@
+smart_qianshao_decision_node:
+  ros__parameters:
+    # Current strategy:
+    # start directly in home patrol and keep cycling home patrol points.
+    # Supply recovery resumes home patrol instead of restarting an opening sequence.
+    # Enemy deep patrol is disabled for the current strategy.
+    enable_enemy_patrol_attack: false
+    center_patrol_phase_sec: 60.0
+    patrol_hold_sec: 10.0
+
+    target_names:
+      - "home"
+      - "home_patrol_0"
+      - "home_patrol_1"
+      - "center_patrol_0"
+      - "center_patrol_1"
+      - "enemy_patrol_0"
+      - "enemy_patrol_1"
+
+    # TODO: replace all poses with measured RViz/map coordinates.
+    # Pose format is [x, y, yaw]. Zone must be one of: home, center, enemy.
+    #target.home.pose: [-1.79, -4.18, 0.0] #红方
+    target.home.pose: [21.32, 5.52, 0.0] #蓝方
+    target.home.zone: "home"
+    #target.home_patrol_0.pose: [1.35, 2.61, 0.0] #红方
+    target.home_patrol_0.pose: [20.67, 3.36, 0.0] #蓝方
+    target.home_patrol_0.zone: "home"
+    #target.home_patrol_1.pose: [-0.73, -1.57, 0.0] #红方
+    target.home_patrol_1.pose: [19.00, -1.04, 0.0] #蓝方
+    target.home_patrol_1.zone: "home"
+    #target.center_patrol_0.pose: [12.88, 7.35, 0.0] #红方
+    target.center_patrol_0.pose: [7.25, -4.64, 0.0] #蓝方
+    target.center_patrol_0.zone: "center"
+    #target.center_patrol_1.pose: [11.04, -2.63, 0.0] #红方
+    target.center_patrol_1.pose: [9.14, -2.67, 0.0] #蓝方
+    target.center_patrol_1.zone: "center"
+    #target.enemy_patrol_0.pose: [16.31, 2.77, 0.0] #红方
+    target.enemy_patrol_0.pose: [4.86, 3.93, 0.0] #蓝方
+    target.enemy_patrol_0.zone: "enemy"
+    #target.enemy_patrol_1.pose: [15.24, -1.66, 0.0] #红方
+    target.enemy_patrol_1.pose: [4.86, 3.93, 0.0] #蓝方
+    target.enemy_patrol_1.zone: "enemy"
+
+    home_patrol_targets: ["home_patrol_0", "home_patrol_1"]
+    center_patrol_targets: ["center_patrol_0", "center_patrol_1"]
+    enemy_patrol_targets: ["enemy_patrol_0", "enemy_patrol_1"]
+
+    # Each adjacent zone transition chooses left or right independently.
+    transition.home_to_center.side: "left"
+    transition.center_to_home.side: "left"
+    transition.center_to_enemy.side: "right"
+    transition.enemy_to_center.side: "left"
+
+    #transition.home_to_center.left.approach_pose: [6.43, 5.92, 0.0] #红方
+    transition.home_to_center.left.approach_pose: [12.48, -4.91, 0.0] #蓝方
+    #transition.home_to_center.left.exit_pose: [11.32, 3.80, 0.0] #红方
+    transition.home_to_center.left.exit_pose: [7.10, -4.76, 0.0] #蓝方
+    transition.home_to_center.right.approach_pose: [0.0, 0.0, 0.0]   
+    transition.home_to_center.right.exit_pose: [0.0, 0.0, 0.0]
+
+    #transition.center_to_home.left.approach_pose: [12.36, 6.55, 0.0] #红方
+    transition.center_to_home.left.approach_pose: [7.10, -4.96, 0.0] #蓝方
+    #transition.center_to_home.left.exit_pose: [6.80, 6.47, 0.0] #红方
+    transition.center_to_home.left.exit_pose: [12.82, -4.95, 0.0] #蓝方
+    transition.center_to_home.right.approach_pose: [5.38, -5.68, 0.0]
+    transition.center_to_home.right.exit_pose: [4.51, -1.76, 0.0]
+
+    transition.center_to_enemy.left.approach_pose: [0.0, 0.0, 0.0]
+    transition.center_to_enemy.left.exit_pose: [0.0, 0.0, 0.0]
+    transition.center_to_enemy.right.approach_pose: [14.67, 7.38, 0.0]
+    transition.center_to_enemy.right.exit_pose: [15.39, 2.85, 0.0]
+
+    transition.enemy_to_center.left.approach_pose: [12.96, -4.86, 0.0]
+    transition.enemy_to_center.left.exit_pose: [8.94, -2.35, 0.0]
+    transition.enemy_to_center.right.approach_pose: [0.0, 0.0, 0.0]
+    transition.enemy_to_center.right.exit_pose: [0.0, 0.0, 0.0]

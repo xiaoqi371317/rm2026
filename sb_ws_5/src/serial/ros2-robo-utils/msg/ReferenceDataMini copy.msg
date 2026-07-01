@@ -1,0 +1,17 @@
+std_msgs/Header header
+uint8 game_state    
+uint16 remaining_time
+uint8 self_color 
+uint16 self_health    
+float64 enermy_outpost_hp
+float64 my_outpost_hp
+float64 enermy_base_hp
+float64 my_base_hp
+float64 enermy_sentry_hp
+uint16 shoot_heat
+uint16 remaining_bullet
+uint8 who_is_balance
+uint8 center_gain_point_status 
+uint8 at_supply_area
+uint8 at_center_gain_point  
+uint8 supply_area_status
